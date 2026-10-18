@@ -1,0 +1,24 @@
+{
+  "name": "ngo-erp-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "keywords": [
+    "ngo-erp",
+    "multi-tenant",
+    "firebase",
+    "bangladesh",
+    "pwa",
+    "cloudflare-workers"
+  ],
+  "author": "Antigravity Team",
+  "license": "UNLICENSED"
+}

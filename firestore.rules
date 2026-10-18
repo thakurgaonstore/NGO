@@ -1,0 +1,182 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Core Authentication Helpers
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        request.auth.token.isSuperAdmin == true ||
+        request.auth.token.email == "superadmin@ngoerp.xyz" ||
+        exists(/databases/$(database)/documents/superadmin_users/$(request.auth.uid))
+      );
+    }
+
+    function isTenantUser(tenantId) {
+      return isAuthenticated() && (
+        isSuperAdmin() ||
+        request.auth.token.tenantId == tenantId
+      );
+    }
+
+    function isOwner(tenantId) {
+      return isTenantUser(tenantId) && (
+        isSuperAdmin() ||
+        request.auth.token.role == "owner"
+      );
+    }
+
+    function hasPermission(tenantId, perm) {
+      return isTenantUser(tenantId) && (
+        isOwner(tenantId) ||
+        (request.auth.token.permissions != null && perm in request.auth.token.permissions)
+      );
+    }
+
+    // 1. System-wide Tenant Directory (Domain -> Tenant ID lookup)
+    match /system/tenant_directory {
+      allow read: if true; // Public lookup needed before authentication
+      allow write: if isSuperAdmin();
+    }
+
+    // 2. Super Admin Scope
+    match /superadmin/{allPaths=**} {
+      allow read, write: if isSuperAdmin();
+    }
+    match /superadmin_users/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isSuperAdmin();
+    }
+
+    // 3. Isolated Tenant Scope
+    match /tenants/{tenantId} {
+      // Basic tenant document read (status check)
+      allow read: if true;
+      allow write: if isSuperAdmin() || isOwner(tenantId);
+
+      // Public Website Engine (Publicly readable for visitors)
+      match /website/published {
+        allow read: if true;
+        allow write: if hasPermission(tenantId, "website:publish");
+      }
+      match /website/{doc=**} {
+        allow read, write: if hasPermission(tenantId, "website:edit");
+      }
+
+      // Configuration & Settings
+      match /config/settings {
+        allow read: if isTenantUser(tenantId);
+        allow write: if hasPermission(tenantId, "settings:edit") || isSuperAdmin();
+      }
+      match /config/roles/{roleId} {
+        allow read: if isTenantUser(tenantId);
+        allow write: if isOwner(tenantId);
+      }
+
+      // Organization & Branches
+      match /branches/{branchId} {
+        allow read: if isTenantUser(tenantId);
+        allow write: if hasPermission(tenantId, "organization:edit");
+      }
+
+      // Users & Staff Profiles
+      match /users/{userId} {
+        allow read: if isTenantUser(tenantId);
+        allow create, delete: if isOwner(tenantId);
+        allow update: if isOwner(tenantId) || (isAuthenticated() && request.auth.uid == userId);
+      }
+
+      // CRM: Beneficiaries, Donors, Volunteers
+      match /members/{memberId} {
+        allow read: if hasPermission(tenantId, "members:view");
+        allow create: if hasPermission(tenantId, "members:create");
+        allow update: if hasPermission(tenantId, "members:edit");
+        allow delete: if hasPermission(tenantId, "members:delete");
+      }
+
+      // Programs & Projects
+      match /projects/{projectId} {
+        allow read: if hasPermission(tenantId, "projects:view");
+        allow create: if hasPermission(tenantId, "projects:create");
+        allow update: if hasPermission(tenantId, "projects:edit");
+        allow delete: if isOwner(tenantId);
+      }
+
+      // Dynamic Field Operations & Form Submissions
+      match /forms/{formId} {
+        allow read: if isTenantUser(tenantId);
+        allow write: if hasPermission(tenantId, "field_ops:create_form");
+      }
+      match /form_submissions/{submissionId} {
+        allow read: if hasPermission(tenantId, "field_ops:view");
+        allow create: if hasPermission(tenantId, "field_ops:submit");
+        allow update: if hasPermission(tenantId, "field_ops:approve");
+        allow delete: if isOwner(tenantId);
+      }
+
+      // Savings & Microcredit
+      match /samities/{samityId} {
+        allow read: if hasPermission(tenantId, "microcredit:view");
+        allow write: if hasPermission(tenantId, "microcredit:approve") || isOwner(tenantId);
+      }
+      match /loans/{loanId} {
+        allow read: if hasPermission(tenantId, "microcredit:view");
+        allow create: if hasPermission(tenantId, "microcredit:disburse");
+        allow update: if hasPermission(tenantId, "microcredit:approve") || hasPermission(tenantId, "microcredit:collect");
+      }
+
+      // Accounts & Finance (Maker-Checker Workflow)
+      match /accounts_chart/{accId} {
+        allow read: if hasPermission(tenantId, "accounts:view");
+        allow write: if hasPermission(tenantId, "accounts:approve") || isOwner(tenantId);
+      }
+      match /vouchers/{voucherId} {
+        allow read: if hasPermission(tenantId, "accounts:view");
+        allow create: if hasPermission(tenantId, "accounts:create");
+        allow update: if (resource.data.status == "draft" && hasPermission(tenantId, "accounts:create")) ||
+                         hasPermission(tenantId, "accounts:approve");
+        allow delete: if resource.data.status == "draft" && isOwner(tenantId);
+      }
+
+      // HR, Attendance & Payroll
+      match /employees/{empId} {
+        allow read: if hasPermission(tenantId, "hr_payroll:view");
+        allow write: if isOwner(tenantId) || hasPermission(tenantId, "hr_payroll:view");
+      }
+      match /attendance/{date_branchId} {
+        allow read: if isTenantUser(tenantId);
+        allow create, update: if hasPermission(tenantId, "hr_payroll:attendance");
+      }
+      match /payroll_runs/{period} {
+        allow read: if hasPermission(tenantId, "hr_payroll:view");
+        allow write: if isOwner(tenantId) || hasPermission(tenantId, "hr_payroll:payroll");
+      }
+
+      // Inventory & Relief Distribution
+      match /inventory_items/{itemId} {
+        allow read: if hasPermission(tenantId, "inventory:view");
+        allow write: if hasPermission(tenantId, "inventory:approve") || isOwner(tenantId);
+      }
+      match /inventory_transactions/{txnId} {
+        allow read: if hasPermission(tenantId, "inventory:view");
+        allow create: if hasPermission(tenantId, "inventory:distribute") || hasPermission(tenantId, "inventory:requisition");
+      }
+
+      // Pre-aggregated Dashboard and Counter Documents
+      match /aggregates/{aggId} {
+        allow read: if isTenantUser(tenantId);
+        allow write: if isTenantUser(tenantId);
+      }
+
+      // Audit Logs (Append-only)
+      match /audit_logs/{logId} {
+        allow read: if isOwner(tenantId);
+        allow create: if isTenantUser(tenantId);
+        allow update, delete: if false; // Immutable audit log
+      }
+    }
+  }
+}
