@@ -96,7 +96,7 @@ VITE_CLOUDINARY_UPLOAD_PRESET=ngo_erp_preset
 VITE_CLOUDINARY_API_KEY=আপনার_ক্লাউডিনারি_এপিআই_কি
 
 # Cloudflare Worker (ঐচ্ছিক - এসএমএস প্রক্সি)
-VITE_WORKER_API_URL=https://ngo-erp-worker.workers.dev
+VITE_WORKER_API_URL=https://ngo-erp-worker.thakurgaonstore.workers.dev
 ```
 
 এরপর প্রোডাকশন বান্ডেল তৈরি করুন:
