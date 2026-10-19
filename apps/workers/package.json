@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wrangler dev",
+    "build": "echo Workers ready",
     "deploy": "wrangler deploy",
     "test": "echo \"Workers validated\""
   },
