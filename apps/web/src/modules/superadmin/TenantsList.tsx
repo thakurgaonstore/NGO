@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../components/ui/table';
 import { Dialog } from '../../components/ui/dialog';
 import { TenantProvisioningWizard } from './TenantProvisioningWizard';
+import { cascadeDeleteTenant } from '../../core/tenant/tenantCleanupService';
 import {
   Plus,
   Search,
@@ -21,7 +22,9 @@ import {
   Building2,
   Check,
   Key,
-  Server
+  Server,
+  AlertTriangle,
+  Loader2
 } from 'lucide-react';
 
 interface TenantsListProps {
@@ -29,7 +32,7 @@ interface TenantsListProps {
   onRefresh: () => void;
   onImpersonate: (tenantId: string) => void;
   onToggleStatus: (tenantId: string, currentStatus: string) => void;
-  onDeleteTenant: (tenantId: string) => void;
+  onDeleteTenant?: (tenantId: string) => void;
 }
 
 export const TenantsList: React.FC<TenantsListProps> = ({
@@ -43,6 +46,32 @@ export const TenantsList: React.FC<TenantsListProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
+
+  // Cascade Delete State
+  const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [deleteProgress, setDeleteProgress] = useState<string>('');
+  const [confirmText, setConfirmText] = useState<string>('');
+
+  const handleExecuteDelete = async () => {
+    if (!deletingTenant) return;
+    setIsDeleting(true);
+    setDeleteProgress(isBangla ? 'ক্যাশিং ও ডাটাবেস স্ক্যান করা হচ্ছে...' : 'Scanning database and local storage...');
+
+    try {
+      const result = await cascadeDeleteTenant(deletingTenant, (p) => {
+        setDeleteProgress(p.step);
+      });
+      setIsDeleting(false);
+      setDeletingTenant(null);
+      setConfirmText('');
+      onRefresh();
+      alert(result.message);
+    } catch (err: any) {
+      setIsDeleting(false);
+      alert('Deletion error: ' + (err.message || 'Failed'));
+    }
+  };
 
   // Edit Tenant Modal State
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
@@ -302,9 +331,12 @@ export const TenantsList: React.FC<TenantsListProps> = ({
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => onDeleteTenant(tenant.id)}
+                        onClick={() => {
+                          setDeletingTenant(tenant);
+                          setConfirmText('');
+                        }}
                         className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10"
-                        title="Delete tenant"
+                        title={isBangla ? 'এনজিও ও সমস্ত ডাটা স্থায়ীভাবে ডিলিট করুন' : 'Delete tenant and wipe all data'}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -464,6 +496,142 @@ export const TenantsList: React.FC<TenantsListProps> = ({
           onCancel={() => setIsWizardOpen(false)}
         />
       </Dialog>
+
+      {/* Cascade Delete Confirmation Modal Dialog */}
+      {deletingTenant && (
+        <Dialog
+          isOpen={!!deletingTenant}
+          onClose={() => {
+            if (!isDeleting) {
+              setDeletingTenant(null);
+              setConfirmText('');
+            }
+          }}
+          title={
+            <div className="flex items-center gap-2 text-destructive font-bold">
+              <AlertTriangle className="w-5 h-5 text-destructive animate-pulse" />
+              <span>
+                {isBangla
+                  ? `সতর্কতা: '${deletingTenant.name.bn || deletingTenant.name.en}' চিরতরে মুছে ফেলা`
+                  : `Permanent Delete: '${deletingTenant.name.en}'`}
+              </span>
+            </div>
+          }
+          description={
+            isBangla
+              ? 'এটি একটি স্থায়ী অ্যাকশন। এই এনজিও ও এর সম্পর্কিত সমস্ত ক্লাউড ডাটাবেস রেকর্ড চিরতরে মুছে যাবে।'
+              : 'This action is irreversible. The NGO and all of its cloud database records will be permanently purged.'
+          }
+          maxWidth="lg"
+        >
+          <div className="space-y-4 pt-2">
+            {/* Target NGO Quick Summary */}
+            <div className="p-3.5 rounded-lg border bg-destructive/5 border-destructive/20 flex items-center justify-between">
+              <div>
+                <div className="font-bold text-sm text-foreground">
+                  {deletingTenant.name.bn} ({deletingTenant.name.en})
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                  <span>ক্লায়েন্ট কোড: <strong className="font-mono text-foreground">{deletingTenant.clientId}</strong></span>
+                  <span>•</span>
+                  <span>সাব-ডোমেইন: <span className="font-mono">{deletingTenant.subdomain}</span></span>
+                </div>
+              </div>
+              <Badge variant="destructive" className="text-[11px] font-mono uppercase">
+                {deletingTenant.deploymentMode}
+              </Badge>
+            </div>
+
+            {/* What will be deleted breakdown */}
+            <div className="p-3 rounded-lg border bg-muted/30 space-y-2 text-xs">
+              <div className="font-semibold text-foreground flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                <Database className="w-4 h-4 text-amber-600" />
+                <span>{isBangla ? 'যেসব ডাটাবেস রেকর্ড সম্পূর্ণ ধ্বংস করা হবে:' : 'The following database records will be wiped:'}</span>
+              </div>
+              <ul className="space-y-1.5 text-muted-foreground pl-1">
+                <li className="flex items-start gap-1.5">
+                  <span className="text-destructive font-bold">•</span>
+                  <span><strong>সদস্য ও সমিতি:</strong> সকল মেম্বার প্রোফাইল, সঞ্চয় হিসাব, ভর্তি ফর্ম ও কেন্দ্র তালিকা।</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-destructive font-bold">•</span>
+                  <span><strong>ঋণ ও কিস্তি:</strong> ঋণ বিতরণ ফাইল, সাপ্তাহিক/মাসিক কিস্তি শিডিউল ও আদায়ের তথ্য।</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-destructive font-bold">•</span>
+                  <span><strong>অ্যাকাউন্টিং ও ভাউচার:</strong> ডেবিট/ক্রেডিট ভাউচার, ক্যাশ রিকনসিলিয়েশন ও আর্থিক লেজার।</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-destructive font-bold">•</span>
+                  <span><strong>ইনভেন্টরি ও ওয়্যারহাউজ:</strong> মালামাল স্টক, ক্রয়-বিক্রয় ও শাখাভিত্তিক বিতরণ লগ।</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-destructive font-bold">•</span>
+                  <span><strong>শাখা ও কর্মকর্তা:</strong> ফিল্ড অফিসার, ম্যানেজার একাউন্ট এবং লগইন ক্রেডেনশিয়াল।</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span className="text-destructive font-bold">•</span>
+                  <span><strong>ক্লাউড ডাটাবেস:</strong> ফায়ারবেস (Firestore) কালেকশন ও সিস্টেম ডিরেক্টরি ইনডেক্স।</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Progress or confirmation input */}
+            {isDeleting ? (
+              <div className="p-4 rounded-lg border border-primary/30 bg-primary/5 text-center space-y-2 animate-in fade-in">
+                <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto" />
+                <div className="text-xs font-semibold text-primary">{deleteProgress}</div>
+                <div className="text-[11px] text-muted-foreground">অনুগ্রহ করে কয়েক সেকেন্ড অপেক্ষা করুন...</div>
+              </div>
+            ) : (
+              <div className="space-y-2 pt-1">
+                <label className="text-xs text-muted-foreground block">
+                  নিশ্চিত করতে নিচে ক্লায়েন্ট কোড <strong className="font-mono text-destructive">{deletingTenant.clientId}</strong> লিখুন:
+                </label>
+                <Input
+                  placeholder={deletingTenant.clientId}
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value.trim().toUpperCase())}
+                  className="font-mono uppercase text-xs"
+                />
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2 pt-3 border-t">
+              <Button
+                variant="outline"
+                disabled={isDeleting}
+                onClick={() => {
+                  setDeletingTenant(null);
+                  setConfirmText('');
+                }}
+                className="text-xs"
+              >
+                {isBangla ? 'বাতিল' : 'Cancel'}
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={isDeleting || confirmText !== deletingTenant.clientId}
+                onClick={handleExecuteDelete}
+                className="text-xs font-bold"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                    {isBangla ? 'ডাটা মোছা হচ্ছে...' : 'Deleting...'}
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                    {isBangla ? 'হ্যাঁ, সমস্ত ডাটা চিরতরে মুছে ফেলুন' : 'Wipe NGO & All Data Permanently'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 };

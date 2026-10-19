@@ -104,14 +104,37 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
 }) => {
   const { isBangla, t } = useI18n();
   const { switchTenant } = useTenant();
+
+  // Initialize and load registered tenants
   const [tenants, setTenants] = useState<Tenant[]>(() => {
     const saved = localStorage.getItem('ngo_registered_tenants');
-    return saved ? JSON.parse(saved) : INITIAL_DEMO_TENANTS;
+    if (saved !== null) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.warn('Failed to parse saved tenants:', e);
+      }
+    }
+    return INITIAL_DEMO_TENANTS;
   });
+
+  useEffect(() => {
+    if (!localStorage.getItem('ngo_registered_tenants')) {
+      localStorage.setItem('ngo_registered_tenants', JSON.stringify(INITIAL_DEMO_TENANTS));
+    }
+  }, []);
 
   const refreshTenants = () => {
     const saved = localStorage.getItem('ngo_registered_tenants');
-    setTenants(saved ? JSON.parse(saved) : INITIAL_DEMO_TENANTS);
+    if (saved !== null) {
+      try {
+        setTenants(JSON.parse(saved));
+        return;
+      } catch (e) {
+        console.warn('Failed to refresh tenants:', e);
+      }
+    }
+    setTenants(INITIAL_DEMO_TENANTS);
   };
 
   const handleImpersonate = async (tenantId: string) => {
@@ -127,11 +150,8 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
   };
 
   const handleDeleteTenant = (tenantId: string) => {
-    if (confirm(isBangla ? 'আপনি কি নিশ্চিত যে এই টেন্যান্ট মুছে ফেলতে চান?' : 'Are you sure you want to delete this tenant?')) {
-      const updated = tenants.filter((t) => t.id !== tenantId);
-      setTenants(updated);
-      localStorage.setItem('ngo_registered_tenants', JSON.stringify(updated));
-    }
+    // Handled in TenantsList confirmation modal
+    refreshTenants();
   };
 
   // Metrics
