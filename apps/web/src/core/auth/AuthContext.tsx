@@ -8,6 +8,7 @@ import {
   User as FirebaseUser
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
+import { DEFAULT_DEMO_TENANTS } from '../tenant/TenantResolver';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -126,12 +127,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 2. Lookup Tenant by Client ID or Subdomain
-      const registeredTenants = JSON.parse(localStorage.getItem('ngo_registered_tenants') || '[]');
+      const rawTenants = localStorage.getItem('ngo_registered_tenants');
+      const registeredTenants = rawTenants ? JSON.parse(rawTenants) : DEFAULT_DEMO_TENANTS;
       const tenant = registeredTenants.find(
         (t: any) =>
-          t.clientId.toUpperCase() === cleanClientId ||
-          t.subdomain.toUpperCase() === cleanClientId ||
-          t.id.toUpperCase() === cleanClientId
+          t.clientId?.toUpperCase() === cleanClientId ||
+          t.subdomain?.toUpperCase() === cleanClientId ||
+          t.id?.toUpperCase() === cleanClientId
       );
 
       const targetTenantId = tenant ? tenant.id : cleanClientId.toLowerCase();

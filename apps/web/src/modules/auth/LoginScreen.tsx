@@ -41,15 +41,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
   } = useAuth();
   const { tenant, resolution } = useTenant();
 
-  // Detect if on /mahinerp path
+  // Detect if on /mahinerp path or custom domain
   const isMahinErpPath = window.location.pathname.startsWith('/mahinerp') || window.location.pathname.startsWith('/superadmin');
+  const hasCustomDomain = Boolean(resolution.isCustomDomainOrSubdomain);
+  const hasKnownDomain = Boolean(resolution.isCustomDomainOrSubdomain || (resolution.source === 'path' && resolution.clientId));
+
   const [activeTab, setActiveTab] = useState<'client' | 'superadmin'>(() => {
+    if (hasCustomDomain) return 'client';
     if (initialPortal) return initialPortal;
     return isMahinErpPath ? 'superadmin' : 'client';
   });
 
-  // Client Login Credentials
-  const [clientId, setClientId] = useState<string>(tenant?.clientId || 'JAGORANI');
+  // Client Login Credentials (locked to resolved clientId on custom domain)
+  const [clientId, setClientId] = useState<string>(resolution.clientId || tenant?.clientId || 'JAGORANI');
   const [identifier, setIdentifier] = useState<string>('01911-889900'); // Field officer mobile by default for demo
   const [password, setPassword] = useState<string>('NgoPass2026!');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -62,14 +66,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
   const [confirmPassword, setConfirmPassword] = useState<string>('');
   const [changePassSuccess, setChangePassSuccess] = useState<boolean>(false);
 
-  // If visitor is on custom domain or subdomain, tenant is pre-resolved!
-  const hasKnownDomain = resolution.isCustomDomainOrSubdomain && tenant;
-
   useEffect(() => {
-    if (tenant?.clientId) {
+    if (resolution.clientId) {
+      setClientId(resolution.clientId);
+    } else if (tenant?.clientId) {
       setClientId(tenant.clientId);
     }
-  }, [tenant]);
+  }, [resolution.clientId, tenant?.clientId]);
 
   useEffect(() => {
     if (mustChangePassword) {
@@ -161,39 +164,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
       <div className="max-w-md w-full mx-auto my-6">
         <Card className="border-border shadow-2xl">
           <CardHeader className="text-center pb-3">
-            {/* Tab switch between Client (/cerp) and SuperAdmin (/mahinerp) */}
-            <div className="flex p-1 bg-muted rounded-xl mb-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('client');
-                  setIdentifier('01911-889900');
-                  window.history.replaceState(null, '', '/cerp');
-                }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  activeTab === 'client'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {isBangla ? 'এনজিও কর্মী / গ্রাহক লগইন (/cerp)' : 'Client ERP Portal (/cerp)'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('superadmin');
-                  setIdentifier('superadmin@ngoerp.xyz');
-                  window.history.replaceState(null, '', '/mahinerp');
-                }}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
-                  activeTab === 'superadmin'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {isBangla ? 'সুপার এডমিন (/mahinerp)' : 'Super Admin (/mahinerp)'}
-              </button>
-            </div>
+            {/* Tab switch between Client (/cerp) and SuperAdmin (/mahinerp) - hidden on custom domain */}
+            {!hasCustomDomain && (
+              <div className="flex p-1 bg-muted rounded-xl mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('client');
+                    setIdentifier('01911-889900');
+                    window.history.replaceState(null, '', '/cerp');
+                  }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                    activeTab === 'client'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {isBangla ? 'এনজিও কর্মী / গ্রাহক লগইন (/cerp)' : 'Client ERP Portal (/cerp)'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('superadmin');
+                    setIdentifier('superadmin@ngoerp.xyz');
+                    window.history.replaceState(null, '', '/mahinerp');
+                  }}
+                  className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
+                    activeTab === 'superadmin'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {isBangla ? 'সুপার এডমিন (/mahinerp)' : 'Super Admin (/mahinerp)'}
+                </button>
+              </div>
+            )}
 
             <CardTitle className="text-lg font-bold">
               {activeTab === 'superadmin'

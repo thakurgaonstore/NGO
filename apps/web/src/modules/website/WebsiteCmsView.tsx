@@ -204,7 +204,11 @@ export const WebsiteCmsView: React.FC = () => {
     saveWebsiteConfig(updatedConfig);
   };
 
-  const publicUrl = `/${config.clientId.toLowerCase()}`;
+  const cleanCustomDomain = config.customDomain
+    ? config.customDomain.trim().replace(/^https?:\/\//, '').replace(/\/$/, '')
+    : '';
+  const publicUrl = cleanCustomDomain ? `https://${cleanCustomDomain}` : `/${config.clientId.toLowerCase()}`;
+  const loginUrl = cleanCustomDomain ? `https://${cleanCustomDomain}/cerp` : `/${config.clientId.toLowerCase()}/cerp`;
 
   return (
     <div className="space-y-6">
@@ -217,7 +221,7 @@ export const WebsiteCmsView: React.FC = () => {
               {isBangla ? 'পাবলিক ওয়েবসাইট কাস্টমাইজার ও সিএমএস হাব' : 'Public Website CMS & Customizer'}
             </h2>
             <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-300 font-mono text-[10px]">
-              {config.customDomain ? config.customDomain : `domain${publicUrl}`}
+              {cleanCustomDomain ? cleanCustomDomain : `/${config.clientId.toLowerCase()}`}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -225,19 +229,34 @@ export const WebsiteCmsView: React.FC = () => {
               ? 'লোগো, ফেভিকন, ব্রাউজার টাইটেল, এসইও কিওয়ার্ড, টপ বার, হেডার মেনু, সার্চ বার, নিউজ টিকার, স্লাইডার ও ২/৩/৪ কলাম ফুটার কনফিগারেশন।'
               : 'Customize Logo, Favicon, SEO Keywords, Top Bar, Header, Search Bar, Ticker, Carousel Slider & Footer.'}
           </p>
+          {cleanCustomDomain && (
+            <div className="flex flex-wrap items-center gap-3 mt-2 text-[11px] font-mono">
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                🌐 সাইট: <a href={publicUrl} target="_blank" rel="noreferrer" className="underline hover:text-emerald-600">{publicUrl}</a>
+              </span>
+              <span className="text-sky-700 dark:text-sky-400 font-bold">
+                🔐 স্টাফ লগইন: <a href={loginUrl} target="_blank" rel="noreferrer" className="underline hover:text-sky-600">{loginUrl}</a>
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
           {/* Direct Public Website Open Link */}
-          <a
-            href={publicUrl}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            onClick={() => {
+              if (cleanCustomDomain) {
+                // Open simulated preview or direct URL
+                window.open(`/?domain=${encodeURIComponent(cleanCustomDomain)}`, '_blank');
+              } else {
+                window.open(publicUrl, '_blank');
+              }
+            }}
             className="h-9 px-3 text-xs font-bold rounded-lg border border-primary/30 text-primary hover:bg-primary/5 flex items-center gap-1.5 transition-colors"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             <span>{isBangla ? 'পাবলিক সাইট দেখুন' : 'Visit Site'}</span>
-          </a>
+          </button>
 
           <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)} className="text-xs h-9">
             <Eye className="w-4 h-4 mr-1.5" />
@@ -416,12 +435,17 @@ export const WebsiteCmsView: React.FC = () => {
                   <Input
                     value={config.customDomain || ''}
                     onChange={(e) => setConfig({ ...config, customDomain: e.target.value })}
-                    placeholder="e.g. www.jagorani.org"
+                    placeholder="যেমন: www.jagoranibd.org বা jagorani.org"
                     className="font-mono"
                   />
-                  <span className="text-[10px] text-muted-foreground mt-0.5 block">
-                    কাস্টম ডোমেইন থাকলে সরাসরি এই ডোমেইনে ওয়েবসাইট লোড হবে।
-                  </span>
+                  <div className="mt-1.5 space-y-0.5 text-[10px]">
+                    <span className="text-emerald-700 dark:text-emerald-400 font-semibold block">
+                      ✓ ওয়েবসাইট লিংক: <strong className="font-mono underline">{config.customDomain ? `https://${config.customDomain.replace(/^https?:\/\//, '')}` : 'https://yourdomain.com'}</strong> (শেষে কোনো আইডি লাগবে না)
+                    </span>
+                    <span className="text-sky-700 dark:text-sky-400 font-semibold block">
+                      ✓ স্টাফ ও মেম্বার লগইন: <strong className="font-mono underline">{config.customDomain ? `https://${config.customDomain.replace(/^https?:\/\//, '')}/cerp` : 'https://yourdomain.com/cerp'}</strong>
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>

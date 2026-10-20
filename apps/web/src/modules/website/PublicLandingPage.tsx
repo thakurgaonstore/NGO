@@ -174,6 +174,11 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
   };
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href === '/cerp' || href.endsWith('/cerp') || href.includes('/cerp')) {
+      e.preventDefault();
+      handleGoToLogin();
+      return;
+    }
     if (href && href.startsWith('#')) {
       e.preventDefault();
       const targetId = href.replace('#', '');

@@ -625,14 +625,35 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
                         {tenant.name.en}
                       </p>
 
-                      <div className="text-xs font-mono text-muted-foreground mt-3 p-2 rounded bg-muted/50 border border-border/50">
-                        URL: <span className="text-primary font-semibold">{window.location.origin}/{targetSlug}</span>
-                      </div>
+                      {tenant.domain ? (
+                        <div className="text-xs font-mono text-muted-foreground mt-3 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-sans font-bold">কাস্টম ডোমেইন:</span>
+                            <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold">ROOT DOMAIN</span>
+                          </div>
+                          <div className="text-emerald-700 dark:text-emerald-400 font-bold truncate">
+                            https://{tenant.domain}
+                          </div>
+                          <div className="text-[10px] text-sky-700 dark:text-sky-400">
+                            লগইন: https://{tenant.domain}/cerp
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs font-mono text-muted-foreground mt-3 p-2 rounded bg-muted/50 border border-border/50">
+                          URL: <span className="text-primary font-semibold">{window.location.origin}/{targetSlug}</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-5 flex items-center gap-2">
                       <button
-                        onClick={() => onNavigateToTenantPublic(targetSlug)}
+                        onClick={() => {
+                          if (tenant.domain) {
+                            window.open(`/?domain=${encodeURIComponent(tenant.domain)}`, '_blank');
+                          } else {
+                            onNavigateToTenantPublic(targetSlug);
+                          }
+                        }}
                         className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-sm"
                       >
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -641,11 +662,15 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
 
                       <button
                         onClick={() => {
-                          window.history.pushState({}, '', `/${targetSlug}/login`);
-                          onNavigateToClientLogin();
+                          if (tenant.domain) {
+                            window.open(`/cerp?domain=${encodeURIComponent(tenant.domain)}`, '_blank');
+                          } else {
+                            window.history.pushState({}, '', `/${targetSlug}/cerp`);
+                            onNavigateToClientLogin();
+                          }
                         }}
                         className="inline-flex items-center justify-center gap-1 py-2 px-2.5 rounded-lg text-xs font-semibold border border-input bg-background hover:bg-muted transition-all"
-                        title={isBangla ? 'স্টাফ লগইন' : 'Staff Login'}
+                        title={isBangla ? 'স্টাফ লগইন (/cerp)' : 'Staff Login (/cerp)'}
                       >
                         <Lock className="w-3.5 h-3.5" />
                       </button>

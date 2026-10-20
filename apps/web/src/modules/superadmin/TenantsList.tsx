@@ -254,10 +254,16 @@ export const TenantsList: React.FC<TenantsListProps> = ({
                         {tenant.deploymentMode === 'MODE_B' ? 'Mode B (Dedicated Firebase)' : 'Mode A (Shared)'}
                       </Badge>
                       {tenant.domain && (
-                        <span className="text-[10px] text-primary font-mono flex items-center gap-0.5">
+                        <a
+                          href={`https://${tenant.domain}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] text-emerald-600 hover:underline font-mono flex items-center gap-0.5 font-bold"
+                          title="কাস্টম ডোমেইন সরাসরি ওপেন করুন"
+                        >
                           <ExternalLink className="w-2.5 h-2.5" />
                           {tenant.domain}
-                        </span>
+                        </a>
                       )}
                     </div>
                   </TableCell>
@@ -291,11 +297,19 @@ export const TenantsList: React.FC<TenantsListProps> = ({
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          const slug = tenant.clientId?.toLowerCase() || tenant.id;
-                          window.open('/' + slug, '_blank');
+                          if (tenant.domain) {
+                            window.open(`/?domain=${encodeURIComponent(tenant.domain)}`, '_blank');
+                          } else {
+                            const slug = tenant.clientId?.toLowerCase() || tenant.id;
+                            window.open('/' + slug, '_blank');
+                          }
                         }}
-                        className="h-7 text-xs px-2 text-emerald-600 hover:bg-emerald-500/10"
-                        title={isBangla ? 'ক্লায়েন্টের পাবলিক ওয়েবসাইট দেখুন' : 'View Client Public Website'}
+                        className="h-7 text-xs px-2 text-emerald-600 hover:bg-emerald-500/10 font-bold"
+                        title={
+                          tenant.domain
+                            ? `কাস্টম ডোমেইন (${tenant.domain}) ভিউ`
+                            : (isBangla ? 'ক্লায়েন্টের পাবলিক ওয়েবসাইট দেখুন' : 'View Client Public Website')
+                        }
                       >
                         <Globe className="w-3.5 h-3.5 mr-1" />
                         {isBangla ? 'ওয়েবসাইট' : 'Site'}

@@ -125,55 +125,91 @@ const AppContent: React.FC = () => {
   // Handle Client NGO Public Landing Page View (domain/:clientId, custom domain, or preview)
   if (currentView === 'public') {
     const effectiveTenantId = tenant?.id || resolution.tenantId || 'demo-jagorani';
+    const isCustomDomain = resolution.isCustomDomainOrSubdomain;
+
     return (
       <div className="relative">
-        {/* Sleek top notification banner */}
-        <div className="bg-slate-900 text-slate-100 text-xs px-4 py-2 flex items-center justify-between border-b border-emerald-500/40 z-50 sticky top-0 shadow-md">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-medium">
-              ক্লায়েন্ট এনজিও পোর্টাল: {tenant?.name?.bn || 'জাগরণী ফাউন্ডেশন'} ({resolution.clientId || 'JAGORANI'})
-            </span>
+        {/* On custom domains, hide the platform banner completely for regular visitors, or show slim admin bar only when logged in */}
+        {!isCustomDomain ? (
+          <div className="bg-slate-900 text-slate-100 text-xs px-4 py-2 flex items-center justify-between border-b border-emerald-500/40 z-50 sticky top-0 shadow-md">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="font-medium">
+                ক্লায়েন্ট এনজিও পোর্টাল: {tenant?.name?.bn || 'জাগরণী ফাউন্ডেশন'} ({resolution.clientId || 'JAGORANI'})
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  window.history.pushState({}, '', '/');
+                  setCurrentView('platform_home');
+                }}
+                className="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors shadow-sm"
+              >
+                ← মূল প্ল্যাটফর্ম হোম
+              </button>
+              {currentUser && (
+                <>
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, '', '/cerp');
+                      setClientModule('website');
+                      setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
+                    }}
+                    className="px-2.5 py-1 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold transition-colors shadow-sm"
+                  >
+                    সিএমএস এডিট করুন
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.history.pushState({}, '', '/cerp');
+                      setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
+                    }}
+                    className="px-2.5 py-1 text-[11px] bg-primary text-primary-foreground rounded font-bold transition-colors shadow-sm"
+                  >
+                    এডমিন প্যানেলে ফিরুন →
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                window.history.pushState({}, '', '/');
-                setCurrentView('platform_home');
-              }}
-              className="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors shadow-sm"
-            >
-              ← মূল প্ল্যাটফর্ম হোম
-            </button>
-            {currentUser && (
-              <>
-                <button
-                  onClick={() => {
-                    window.history.pushState({}, '', '/cerp');
-                    setClientModule('website');
-                    setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
-                  }}
-                  className="px-2.5 py-1 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold transition-colors shadow-sm"
-                >
-                  সিএমএস এডিট করুন
-                </button>
-                <button
-                  onClick={() => {
-                    window.history.pushState({}, '', '/cerp');
-                    setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
-                  }}
-                  className="px-2.5 py-1 text-[11px] bg-primary text-primary-foreground rounded font-bold transition-colors shadow-sm"
-                >
-                  এডমিন প্যানেলে ফিরুন →
-                </button>
-              </>
-            )}
+        ) : currentUser ? (
+          <div className="bg-slate-900 text-slate-100 text-xs px-4 py-1.5 flex items-center justify-between border-b border-emerald-500/30 z-50 sticky top-0 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span className="text-[11px] font-medium text-slate-300">
+                {tenant?.name?.bn || 'এনজিও ওয়েবসাইট'} | লগইন ইউজার: {currentUser.displayName?.bn || currentUser.displayName?.en || currentUser.email}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  window.history.pushState({}, '', '/cerp');
+                  setClientModule('website');
+                  setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
+                }}
+                className="px-2.5 py-0.5 text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold transition-colors"
+              >
+                সিএমএস এডিট
+              </button>
+              <button
+                onClick={() => {
+                  window.history.pushState({}, '', '/cerp');
+                  setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
+                }}
+                className="px-2.5 py-0.5 text-[10px] bg-primary text-primary-foreground rounded font-bold transition-colors"
+              >
+                ইআরপিতে ফিরুন →
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
+
         <PublicLandingPage
           tenantId={effectiveTenantId}
           onNavigateToLogin={() => {
-            window.history.pushState({}, '', '/cerp');
+            const loginPath = isCustomDomain ? '/cerp' : `/${resolution.clientId?.toLowerCase() || 'jagorani'}/cerp`;
+            window.history.pushState({}, '', loginPath);
             setCurrentView('login');
           }}
           onNavigateToErp={() => {
@@ -186,7 +222,13 @@ const AppContent: React.FC = () => {
 
   // If not logged in and on /cerp or /login or /mahinerp
   if (currentView === 'login' || !currentUser) {
-    const targetPublicPath = resolution.clientId ? `/${resolution.clientId.toLowerCase()}` : '/';
+    const isCustomDomain = resolution.isCustomDomainOrSubdomain;
+    const targetPublicPath = isCustomDomain
+      ? '/'
+      : resolution.clientId
+      ? `/${resolution.clientId.toLowerCase()}`
+      : '/';
+
     return (
       <div className="relative">
         <LoginScreen
@@ -199,7 +241,11 @@ const AppContent: React.FC = () => {
           <button
             onClick={() => {
               window.history.pushState({}, '', targetPublicPath);
-              setCurrentView(targetPublicPath === '/' ? 'platform_home' : 'public');
+              if (isCustomDomain) {
+                setCurrentView('public');
+              } else {
+                setCurrentView(targetPublicPath === '/' ? 'platform_home' : 'public');
+              }
             }}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-200 backdrop-blur-md rounded-full shadow-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-105"
           >

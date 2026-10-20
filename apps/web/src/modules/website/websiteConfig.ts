@@ -265,6 +265,37 @@ export const getStoredWebsiteConfig = (tenantId?: string): NgoWebsiteConfig => {
 
 export const saveWebsiteConfig = (config: NgoWebsiteConfig) => {
   localStorage.setItem(`ngo_website_config_${config.tenantId}`, JSON.stringify(config));
+
+  // Sync custom domain to lookup cache and registered tenants
+  if (config.customDomain) {
+    try {
+      const clean = config.customDomain
+        .trim()
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .split('/')[0]
+        .split(':')[0];
+
+      if (clean) {
+        const dir = JSON.parse(localStorage.getItem('ngo_tenant_directory_cache') || '{}');
+        dir[clean] = config.tenantId;
+        dir['www.' + clean] = config.tenantId;
+        localStorage.setItem('ngo_tenant_directory_cache', JSON.stringify(dir));
+
+        const savedTenants = JSON.parse(localStorage.getItem('ngo_registered_tenants') || '[]');
+        if (savedTenants.length > 0) {
+          const updated = savedTenants.map((t: any) =>
+            t.id === config.tenantId || t.clientId === config.clientId
+              ? { ...t, domain: config.customDomain }
+              : t
+          );
+          localStorage.setItem('ngo_registered_tenants', JSON.stringify(updated));
+        }
+      }
+    } catch {}
+  }
+
   // Also sync branding colors & favicon dynamically to document
   if (config.faviconUrl) {
     let link: HTMLLinkElement | null = document.querySelector("link[rel*='icon']");
