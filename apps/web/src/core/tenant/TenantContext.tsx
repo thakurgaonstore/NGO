@@ -142,14 +142,18 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   useEffect(() => {
-    if (resolution.isSuperAdminPortal) {
+    if (resolution.isSuperAdminPortal || resolution.isPlatformHome) {
       setIsLoading(false);
       return;
     }
 
     const impersonatedId = sessionStorage.getItem('ngo_impersonating_tenant_id');
-    const targetTenantId = impersonatedId || resolution.tenantId || 'demo-jagorani';
-    loadTenantData(targetTenantId);
+    const targetTenantId = impersonatedId || resolution.tenantId;
+    if (targetTenantId) {
+      loadTenantData(targetTenantId);
+    } else {
+      setIsLoading(false);
+    }
   }, [resolution]);
 
   // Apply Tenant's Primary Color Dynamically

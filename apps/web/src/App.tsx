@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from './core/i18n/I18nContext';
 import { TenantProvider, useTenant } from './core/tenant/TenantContext';
+import { TenantResolver } from './core/tenant/TenantResolver';
 import { AuthProvider, useAuth } from './core/auth/AuthContext';
 import { LoginScreen } from './modules/auth/LoginScreen';
 import { SuperAdminLayout } from './modules/superadmin/SuperAdminLayout';
@@ -28,6 +29,8 @@ import { SocialBusinessView } from './modules/social-business/SocialBusinessView
 import { DonorsGrantsView } from './modules/donors/DonorsGrantsView';
 import { WebsiteCmsView } from './modules/website/WebsiteCmsView';
 import { PublicLandingPage } from './modules/website/PublicLandingPage';
+import { PlatformLandingPage } from './modules/platform-landing/PlatformLandingPage';
+import { PlatformCmsEditor } from './modules/platform-landing/PlatformCmsEditor';
 import { ReportsView } from './modules/reports/ReportsView';
 import { DocumentRepositoryView } from './modules/documents/DocumentRepositoryView';
 import { NoticeBoardView } from './modules/notices/NoticeBoardView';
@@ -50,34 +53,38 @@ const AppContent: React.FC = () => {
   const { currentUser, isSuperAdmin } = useAuth();
 
   // Determine initial view based on URL & resolution
-  const getInitialView = (): 'public' | 'login' | 'client' | 'superadmin' => {
+  const getInitialView = (): 'platform_home' | 'public' | 'login' | 'client' | 'superadmin' => {
     const pathname = window.location.pathname.toLowerCase();
 
-    // 1. Super Admin Portal
+    // 1. Super Admin Portal (/mahinerp or /superadmin)
     if (pathname.startsWith('/mahinerp') || pathname.startsWith('/superadmin')) {
       return isSuperAdmin ? 'superadmin' : 'login';
     }
 
-    // 2. Explicit Client ERP Login (/cerp or /login)
-    if (pathname.startsWith('/cerp') || pathname === '/login') {
+    // 2. Explicit Client ERP Login (/cerp or /login or :clientId/login)
+    if (resolution.isTenantExplicitLogin || pathname.startsWith('/cerp') || pathname === '/login') {
       return currentUser ? (isSuperAdmin ? 'superadmin' : 'client') : 'login';
     }
 
-    // 3. Path-based client (/jagorani, /sheba) or custom domain public site
-    if (resolution.isPublicLanding) {
+    // 3. Path-based client (/JAGORANI, /sheba) or custom domain public site
+    if (resolution.isPublicLanding && resolution.tenantId) {
       return 'public';
     }
 
-    // 4. If logged in, go to ERP / SA
+    // 4. Platform Home (root '/' or '/home')
+    if (resolution.isPlatformHome || pathname === '/' || pathname === '/home') {
+      return 'platform_home';
+    }
+
+    // 5. If logged in, go to ERP / SA
     if (currentUser) {
       return isSuperAdmin ? 'superadmin' : 'client';
     }
 
-    // Default for guest visitors: show Public Landing page!
-    return 'public';
+    return 'platform_home';
   };
 
-  const [currentView, setCurrentView] = useState<'public' | 'login' | 'client' | 'superadmin'>(getInitialView);
+  const [currentView, setCurrentView] = useState<'platform_home' | 'public' | 'login' | 'client' | 'superadmin'>(getInitialView);
   const [superAdminTab, setSuperAdminTab] = useState<string>('overview');
   const [clientModule, setClientModule] = useState<string>('dashboard');
 
@@ -94,43 +101,75 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [currentUser, isSuperAdmin, resolution]);
 
-  // Handle Public Landing Page View (domain/:clientId, custom domain, or preview)
+  // Handle Main Platform Promotional Home Page (/)
+  if (currentView === 'platform_home') {
+    return (
+      <PlatformLandingPage
+        onNavigateToTenantPublic={(slug) => {
+          window.history.pushState({}, '', `/${slug}`);
+          TenantResolver.cacheTenantId(slug);
+          setCurrentView('public');
+        }}
+        onNavigateToClientLogin={() => {
+          window.history.pushState({}, '', '/cerp');
+          setCurrentView('login');
+        }}
+        onNavigateToSuperAdmin={() => {
+          window.history.pushState({}, '', '/mahinerp');
+          setCurrentView(isSuperAdmin ? 'superadmin' : 'login');
+        }}
+      />
+    );
+  }
+
+  // Handle Client NGO Public Landing Page View (domain/:clientId, custom domain, or preview)
   if (currentView === 'public') {
     const effectiveTenantId = tenant?.id || resolution.tenantId || 'demo-jagorani';
     return (
       <div className="relative">
-        {/* If user is logged in as staff/admin, show a sleek top notification banner allowing quick return to ERP */}
-        {currentUser && (
-          <div className="bg-slate-900 text-slate-100 text-xs px-4 py-2 flex items-center justify-between border-b border-emerald-500/40 z-50 sticky top-0 shadow-md">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-medium">
-                অ্যাডমিন প্রিভিউ মোড: {tenant?.name?.bn || 'জাগরণী ফাউন্ডেশন'} ({resolution.clientId || 'JAGORANI'})
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  window.history.pushState({}, '', '/cerp');
-                  setClientModule('website');
-                  setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
-                }}
-                className="px-2.5 py-1 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold transition-colors shadow-sm"
-              >
-                সিএমএস এডিট করুন
-              </button>
-              <button
-                onClick={() => {
-                  window.history.pushState({}, '', '/cerp');
-                  setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
-                }}
-                className="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-white rounded transition-colors shadow-sm"
-              >
-                এডমিন প্যানেলে ফিরুন →
-              </button>
-            </div>
+        {/* Sleek top notification banner */}
+        <div className="bg-slate-900 text-slate-100 text-xs px-4 py-2 flex items-center justify-between border-b border-emerald-500/40 z-50 sticky top-0 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="font-medium">
+              ক্লায়েন্ট এনজিও পোর্টাল: {tenant?.name?.bn || 'জাগরণী ফাউন্ডেশন'} ({resolution.clientId || 'JAGORANI'})
+            </span>
           </div>
-        )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                window.history.pushState({}, '', '/');
+                setCurrentView('platform_home');
+              }}
+              className="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded transition-colors shadow-sm"
+            >
+              ← মূল প্ল্যাটফর্ম হোম
+            </button>
+            {currentUser && (
+              <>
+                <button
+                  onClick={() => {
+                    window.history.pushState({}, '', '/cerp');
+                    setClientModule('website');
+                    setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
+                  }}
+                  className="px-2.5 py-1 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold transition-colors shadow-sm"
+                >
+                  সিএমএস এডিট করুন
+                </button>
+                <button
+                  onClick={() => {
+                    window.history.pushState({}, '', '/cerp');
+                    setCurrentView(isSuperAdmin ? 'superadmin' : 'client');
+                  }}
+                  className="px-2.5 py-1 text-[11px] bg-primary text-primary-foreground rounded font-bold transition-colors shadow-sm"
+                >
+                  এডমিন প্যানেলে ফিরুন →
+                </button>
+              </>
+            )}
+          </div>
+        </div>
         <PublicLandingPage
           tenantId={effectiveTenantId}
           onNavigateToLogin={() => {
@@ -160,7 +199,7 @@ const AppContent: React.FC = () => {
           <button
             onClick={() => {
               window.history.pushState({}, '', targetPublicPath);
-              setCurrentView('public');
+              setCurrentView(targetPublicPath === '/' ? 'platform_home' : 'public');
             }}
             className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white/95 dark:bg-slate-900/95 text-slate-700 dark:text-slate-200 backdrop-blur-md rounded-full shadow-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all hover:scale-105"
           >
@@ -183,6 +222,10 @@ const AppContent: React.FC = () => {
         currentTab={superAdminTab}
         onTabChange={setSuperAdminTab}
         onExitSuperAdmin={() => setCurrentView('client')}
+        onViewPlatformHome={() => {
+          window.history.pushState({}, '', '/');
+          setCurrentView('platform_home');
+        }}
       >
         {superAdminTab === 'overview' && (
           <SuperAdminDashboard
@@ -199,6 +242,14 @@ const AppContent: React.FC = () => {
           />
         )}
         {superAdminTab === 'plans' && <PlansList />}
+        {superAdminTab === 'platform_cms' && (
+          <PlatformCmsEditor
+            onViewLiveWebsite={() => {
+              window.history.pushState({}, '', '/');
+              setCurrentView('platform_home');
+            }}
+          />
+        )}
         {superAdminTab === 'quotas' && (
           <div className="space-y-4">
             <h2 className="text-xl font-bold">Spark Quota Guard & Cost Preservation</h2>

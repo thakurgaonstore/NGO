@@ -24,7 +24,8 @@ import {
   Key,
   Server,
   AlertTriangle,
-  Loader2
+  Loader2,
+  Globe
 } from 'lucide-react';
 
 interface TenantsListProps {
@@ -285,6 +286,21 @@ export const TenantsList: React.FC<TenantsListProps> = ({
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
+                      {/* View Client Public Website */}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const slug = tenant.clientId?.toLowerCase() || tenant.id;
+                          window.open('/' + slug, '_blank');
+                        }}
+                        className="h-7 text-xs px-2 text-emerald-600 hover:bg-emerald-500/10"
+                        title={isBangla ? 'ক্লায়েন্টের পাবলিক ওয়েবসাইট দেখুন' : 'View Client Public Website'}
+                      >
+                        <Globe className="w-3.5 h-3.5 mr-1" />
+                        {isBangla ? 'ওয়েবসাইট' : 'Site'}
+                      </Button>
+
                       {/* Impersonate Button */}
                       <Button
                         size="sm"

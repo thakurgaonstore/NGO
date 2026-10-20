@@ -15,13 +15,15 @@ import {
   Shield,
   Layers,
   Menu,
-  X
+  X,
+  Globe
 } from 'lucide-react';
 
 interface SuperAdminLayoutProps {
   currentTab: string;
   onTabChange: (tab: string) => void;
   onExitSuperAdmin: () => void;
+  onViewPlatformHome?: () => void;
   children: React.ReactNode;
 }
 
@@ -29,6 +31,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   currentTab,
   onTabChange,
   onExitSuperAdmin,
+  onViewPlatformHome,
   children
 }) => {
   const { isBangla, t } = useI18n();
@@ -39,6 +42,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
     { id: 'overview', label: isBangla ? 'গ্লোবাল ড্যাশবোর্ড' : 'Overview', icon: LayoutDashboard },
     { id: 'tenants', label: isBangla ? 'এনজিও টেন্যান্টসমূহ' : 'Tenants', icon: Building2 },
     { id: 'plans', label: isBangla ? 'সাবস্ক্রিপশন প্ল্যান' : 'Plans & Pricing', icon: SlidersHorizontal },
+    { id: 'platform_cms', label: isBangla ? 'প্ল্যাটফর্ম ওয়েবসাইট সিএমএস' : 'Platform Website CMS', icon: Globe },
     { id: 'quotas', label: isBangla ? 'স্পার্ক কোটা গার্ড' : 'Spark Quota Guard', icon: Database },
     { id: 'settings', label: isBangla ? 'প্ল্যাটফর্ম সেটিংস' : 'Settings', icon: Settings }
   ];
@@ -86,7 +90,19 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
         </div>
 
         {/* Footer in Sidebar */}
-        <div className="pt-4 border-t border-border space-y-3">
+        <div className="pt-4 border-t border-border space-y-2">
+          {onViewPlatformHome && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onViewPlatformHome}
+              className="w-full text-xs justify-start text-primary border-primary/30 hover:bg-primary/10"
+            >
+              <Globe className="w-4 h-4 mr-2" />
+              {isBangla ? 'মূল ওয়েবসাইট দেখুন' : 'View Platform Website'}
+            </Button>
+          )}
+
           <Button
             variant="outline"
             size="sm"
