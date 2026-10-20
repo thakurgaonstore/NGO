@@ -9,7 +9,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/ca
 import {
   PlatformWebsiteConfig,
   PlatformServiceItem,
-  loadPlatformWebsiteConfig
+  loadPlatformWebsiteConfig,
+  fetchPlatformWebsiteConfigFromCloud
 } from './platformCmsConfig';
 import { Tenant, toBanglaDigits } from '@ngo-erp/shared';
 import {
@@ -91,8 +92,48 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
   });
 
   useEffect(() => {
-    // Reload dynamic CMS config whenever mounted
+    // 1. Initial sync from local storage
     setConfig(loadPlatformWebsiteConfig());
+
+    // 2. Fetch latest from Firestore cloud (handles fresh visitor browsers)
+    fetchPlatformWebsiteConfigFromCloud().then((cloudCfg) => {
+      if (cloudCfg) setConfig(cloudCfg);
+    });
+
+    // 3. Listen to in-window local custom event
+    const handleConfigChange = (e: any) => {
+      if (e.detail) {
+        setConfig(e.detail);
+      } else {
+        setConfig(loadPlatformWebsiteConfig());
+      }
+    };
+    window.addEventListener('ngo_platform_config_changed', handleConfigChange);
+
+    // 4. Listen to cross-tab storage changes
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'ngo_platform_website_cms') {
+        setConfig(loadPlatformWebsiteConfig());
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // 5. BroadcastChannel for instant messaging
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel('ngo_platform_config_channel');
+        bc.onmessage = (ev) => {
+          if (ev.data) setConfig(ev.data);
+        };
+      }
+    } catch {}
+
+    return () => {
+      window.removeEventListener('ngo_platform_config_changed', handleConfigChange);
+      window.removeEventListener('storage', handleStorage);
+      if (bc) bc.close();
+    };
   }, []);
 
   // Auto-advance slider
@@ -108,8 +149,18 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
 
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!contactName.trim()) {
+      alert(isBangla ? 'অনুগ্রহ করে আপনার নাম প্রদান করুন।' : 'Please enter your name.');
+      return;
+    }
     if (!contactPhone.trim()) {
-      alert(isBangla ? 'অনুগ্রহ করে আপনার মোবাইল নম্বর প্রদান করুন' : 'Please provide your mobile number');
+      alert(isBangla ? 'অনুগ্রহ করে আপনার মোবাইল নম্বর প্রদান করুন।' : 'Please provide your mobile number.');
+      return;
+    }
+
+    if (!captchaInput.trim()) {
+      setCaptchaError(true);
+      alert(isBangla ? 'অনুগ্রহ করে সিকিউরিটি ক্যাপচার যোগফল লিখুন।' : 'Please enter the captcha answer.');
       return;
     }
 
@@ -119,20 +170,31 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
       .trim();
     if (parseInt(normalizedCaptcha, 10) !== expectedCaptcha) {
       setCaptchaError(true);
+      alert(
+        isBangla
+          ? 'ক্যাপচার উত্তর সঠিক হয়নি! পুনরায় যোগফল হিসাব করে লিখুন।'
+          : 'Incorrect captcha sum! Please calculate and try again.'
+      );
       return;
     }
     setCaptchaError(false);
 
     // Save Inquiry to Super Admin Inbox
     savePlatformInquiry({
-      senderName: contactName,
-      senderPhone: contactPhone,
-      organization: contactOrg,
+      senderName: contactName.trim(),
+      senderPhone: contactPhone.trim(),
+      organization: contactOrg.trim(),
       subjectOrService: contactService,
-      message: contactMessage
+      message: contactMessage.trim() || 'ডেমো সফটওয়্যার বুকিং ও পরামর্শ অনুরোধ',
+      sourcePage: window.location.pathname
     });
 
     setContactSubmitted(true);
+    alert(
+      isBangla
+        ? 'ধন্যবাদ! আপনার বার্তা সুপার এডমিন ইনবক্সে সফলভাবে জমা হয়েছে।'
+        : 'Thank you! Your message has been sent to the Super Admin Inbox.'
+    );
     setContactName('');
     setContactOrg('');
     setContactPhone('');

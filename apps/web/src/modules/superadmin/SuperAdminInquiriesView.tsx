@@ -5,7 +5,8 @@ import {
   getPlatformInquiries,
   markPlatformInquiryAsRead,
   deletePlatformInquiry,
-  getPlatformUnreadCount
+  getPlatformUnreadCount,
+  fetchPlatformInquiriesFromCloud
 } from '../../core/inquiry/inquiryService';
 import {
   getStoredPlatformCmsConfig,
@@ -45,18 +46,66 @@ export const SuperAdminInquiriesView: React.FC = () => {
   const [customNoticeEn, setCustomNoticeEn] = useState<string>(cmsConfig.contactFormClosedNoticeEn);
 
   // Inquiries State
-  const [inquiries, setInquiries] = useState<InquiryMessage[]>([]);
+  const [inquiries, setInquiries] = useState<InquiryMessage[]>(() => getPlatformInquiries());
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [selectedInquiry, setSelectedInquiry] = useState<InquiryMessage | null>(null);
 
-  // Load inquiries
+  // Load inquiries (both localStorage & Firestore cloud)
   const reloadInquiries = () => {
     setInquiries(getPlatformInquiries());
+    fetchPlatformInquiriesFromCloud().then((cloudList) => {
+      if (cloudList && cloudList.length > 0) {
+        setInquiries(cloudList);
+      }
+    });
   };
 
   useEffect(() => {
     reloadInquiries();
+
+    // In-window custom event when inquiry is added or status updated
+    const handleInquiryChange = () => {
+      reloadInquiries();
+    };
+    window.addEventListener('ngo_platform_inquiry_added', handleInquiryChange);
+    window.addEventListener('ngo_platform_inquiry_updated', handleInquiryChange);
+
+    // Cross-tab storage change
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'ngo_platform_inquiries') {
+        reloadInquiries();
+      }
+      if (e.key === 'ngo_platform_website_cms') {
+        setCmsConfig(getStoredPlatformCmsConfig());
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    // Cross-tab BroadcastChannel
+    let bcInq: BroadcastChannel | null = null;
+    let bcCfg: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bcInq = new BroadcastChannel('ngo_platform_inquiries_channel');
+        bcInq.onmessage = () => {
+          reloadInquiries();
+        };
+
+        bcCfg = new BroadcastChannel('ngo_platform_config_channel');
+        bcCfg.onmessage = (ev) => {
+          if (ev.data) setCmsConfig(ev.data);
+        };
+      }
+    } catch {}
+
+    return () => {
+      window.removeEventListener('ngo_platform_inquiry_added', handleInquiryChange);
+      window.removeEventListener('ngo_platform_inquiry_updated', handleInquiryChange);
+      window.removeEventListener('storage', handleStorage);
+      if (bcInq) bcInq.close();
+      if (bcCfg) bcCfg.close();
+    };
   }, []);
 
   // Toggle Contact Form ON/OFF

@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, getDocs, collection } from 'firebase/firestore';
 import { getOrCreateFirebaseInstance } from '../firebase/firebaseClient';
 
 export interface WebsiteInquiry {
@@ -105,14 +105,51 @@ export const savePlatformInquiry = (
   const updated = [newInquiry, ...existing];
   localStorage.setItem(PLATFORM_INQUIRIES_KEY, JSON.stringify(updated));
 
-  // Sync to Firestore background (non-blocking)
+  // Instant broadcast to in-window listeners & other open tabs
+  try {
+    window.dispatchEvent(new CustomEvent('ngo_platform_inquiry_added', { detail: newInquiry }));
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel('ngo_platform_inquiries_channel');
+      bc.postMessage(newInquiry);
+      bc.close();
+    }
+  } catch {}
+
+  // Sync to Firestore superadmin collection (background)
   try {
     const { firestore } = getOrCreateFirebaseInstance();
-    const docRef = doc(firestore, 'superadmin', 'inquiries', 'leads', newInquiry.id);
+    const docRef = doc(firestore, 'superadmin_inquiries', newInquiry.id);
     setDoc(docRef, newInquiry).catch(() => {});
   } catch {}
 
   return newInquiry;
+};
+
+export const fetchPlatformInquiriesFromCloud = async (): Promise<WebsiteInquiry[]> => {
+  try {
+    const { firestore } = getOrCreateFirebaseInstance();
+    const snap = await getDocs(collection(firestore, 'superadmin_inquiries'));
+    if (!snap.empty) {
+      const cloudList: WebsiteInquiry[] = [];
+      snap.forEach((d) => {
+        cloudList.push(d.data() as WebsiteInquiry);
+      });
+
+      const existing = getPlatformInquiries();
+      const existingIds = new Set(existing.map((i) => i.id));
+      const newItems = cloudList.filter((i) => !existingIds.has(i.id));
+
+      if (newItems.length > 0) {
+        const merged = [...newItems, ...existing];
+        merged.sort((a, b) => b.createdAt - a.createdAt);
+        localStorage.setItem(PLATFORM_INQUIRIES_KEY, JSON.stringify(merged));
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch platform inquiries from cloud:', err);
+  }
+  return getPlatformInquiries();
 };
 
 export type InquiryMessage = WebsiteInquiry;
@@ -121,6 +158,9 @@ export const updatePlatformInquiryStatus = (id: string, status: 'unread' | 'read
   const existing = getPlatformInquiries();
   const updated = existing.map((i) => (i.id === id ? { ...i, status } : i));
   localStorage.setItem(PLATFORM_INQUIRIES_KEY, JSON.stringify(updated));
+  try {
+    window.dispatchEvent(new CustomEvent('ngo_platform_inquiry_updated'));
+  } catch {}
 };
 
 export const markPlatformInquiryAsRead = (id: string) => {
@@ -131,6 +171,9 @@ export const deletePlatformInquiry = (id: string) => {
   const existing = getPlatformInquiries();
   const updated = existing.filter((i) => i.id !== id);
   localStorage.setItem(PLATFORM_INQUIRIES_KEY, JSON.stringify(updated));
+  try {
+    window.dispatchEvent(new CustomEvent('ngo_platform_inquiry_updated'));
+  } catch {}
 };
 
 export const getPlatformUnreadCount = (): number => {
@@ -176,6 +219,20 @@ export const saveTenantInquiry = (
   const updated = [newInquiry, ...existing];
   localStorage.setItem(key, JSON.stringify(updated));
 
+  // Instant broadcast to in-window listeners & other open tabs
+  try {
+    window.dispatchEvent(
+      new CustomEvent('ngo_tenant_inquiry_added', {
+        detail: { tenantId: effectiveTenantId, inquiry: newInquiry }
+      })
+    );
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel(`ngo_tenant_${effectiveTenantId}_inquiries_channel`);
+      bc.postMessage(newInquiry);
+      bc.close();
+    }
+  } catch {}
+
   // Sync to Firestore tenant collection background (non-blocking)
   try {
     const { firestore } = getOrCreateFirebaseInstance();
@@ -184,6 +241,37 @@ export const saveTenantInquiry = (
   } catch {}
 
   return newInquiry;
+};
+
+export const fetchTenantInquiriesFromCloud = async (
+  tenantId: string = 'demo-jagorani'
+): Promise<WebsiteInquiry[]> => {
+  const effectiveTenantId = tenantId || 'demo-jagorani';
+  const key = `${TENANT_INQUIRIES_PREFIX}${effectiveTenantId}`;
+  try {
+    const { firestore } = getOrCreateFirebaseInstance();
+    const snap = await getDocs(collection(firestore, 'tenants', effectiveTenantId, 'inquiries'));
+    if (!snap.empty) {
+      const cloudList: WebsiteInquiry[] = [];
+      snap.forEach((d) => {
+        cloudList.push(d.data() as WebsiteInquiry);
+      });
+
+      const existing = getTenantInquiries(effectiveTenantId);
+      const existingIds = new Set(existing.map((i) => i.id));
+      const newItems = cloudList.filter((i) => !existingIds.has(i.id));
+
+      if (newItems.length > 0) {
+        const merged = [...newItems, ...existing];
+        merged.sort((a, b) => b.createdAt - a.createdAt);
+        localStorage.setItem(key, JSON.stringify(merged));
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch tenant inquiries from cloud:', err);
+  }
+  return getTenantInquiries(effectiveTenantId);
 };
 
 export const updateTenantInquiryStatus = (

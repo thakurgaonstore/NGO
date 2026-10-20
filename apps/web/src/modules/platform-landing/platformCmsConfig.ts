@@ -580,6 +580,17 @@ export function loadPlatformWebsiteConfig(): PlatformWebsiteConfig {
 export function savePlatformWebsiteConfig(config: PlatformWebsiteConfig) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+
+    // Instant cross-tab & in-window event broadcast
+    try {
+      window.dispatchEvent(new CustomEvent('ngo_platform_config_changed', { detail: config }));
+      if (typeof BroadcastChannel !== 'undefined') {
+        const bc = new BroadcastChannel('ngo_platform_config_channel');
+        bc.postMessage(config);
+        bc.close();
+      }
+    } catch {}
+
     // Asynchronously sync to central firestore if connected
     try {
       const { firestore } = getOrCreateFirebaseInstance();
@@ -589,6 +600,23 @@ export function savePlatformWebsiteConfig(config: PlatformWebsiteConfig) {
   } catch (err) {
     console.warn('Could not save platform CMS:', err);
   }
+}
+
+export async function fetchPlatformWebsiteConfigFromCloud(): Promise<PlatformWebsiteConfig> {
+  try {
+    const { firestore } = getOrCreateFirebaseInstance();
+    const docRef = doc(firestore, 'superadmin', 'platform_cms');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const data = snap.data() as Partial<PlatformWebsiteConfig>;
+      const merged: PlatformWebsiteConfig = { ...DEFAULT_PLATFORM_CONFIG, ...data };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+  } catch (err) {
+    console.warn('Could not fetch platform CMS from firestore:', err);
+  }
+  return loadPlatformWebsiteConfig();
 }
 
 export type PlatformCmsConfig = PlatformWebsiteConfig;

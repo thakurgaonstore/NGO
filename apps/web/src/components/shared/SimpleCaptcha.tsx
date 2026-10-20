@@ -82,14 +82,15 @@ export const SimpleCaptcha: React.FC<SimpleCaptchaProps> = ({
         {/* Input Answer Field */}
         <div className="flex-1">
           <input
-            type="number"
+            type="text"
+            inputMode="numeric"
             required
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            placeholder={isBangla ? 'যোগফল লিখুন' : 'Enter sum'}
+            placeholder={isBangla ? 'যোগফল লিখুন (যেমন: ৯ বা 9)' : 'Enter sum (e.g. 9)'}
             className={`h-9 w-full px-3 text-xs rounded-lg border font-mono ${
               hasError
-                ? 'border-rose-500 bg-rose-50/20 text-rose-700 focus:ring-rose-500'
+                ? 'border-rose-500 bg-rose-50/20 text-rose-700 ring-2 ring-rose-500/30'
                 : 'border-input bg-background focus:ring-2 focus:ring-primary'
             } focus:outline-none transition-all`}
           />

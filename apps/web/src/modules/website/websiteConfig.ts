@@ -275,6 +275,16 @@ export const getStoredWebsiteConfig = (tenantId?: string): NgoWebsiteConfig => {
 export const saveWebsiteConfig = (config: NgoWebsiteConfig) => {
   localStorage.setItem(`ngo_website_config_${config.tenantId}`, JSON.stringify(config));
 
+  // Instant broadcast to in-window listeners & other open tabs
+  try {
+    window.dispatchEvent(new CustomEvent('ngo_tenant_config_changed', { detail: config }));
+    if (typeof BroadcastChannel !== 'undefined') {
+      const bc = new BroadcastChannel(`ngo_tenant_${config.tenantId}_config_channel`);
+      bc.postMessage(config);
+      bc.close();
+    }
+  } catch {}
+
   // Sync custom domain to lookup cache and registered tenants
   if (config.customDomain) {
     try {

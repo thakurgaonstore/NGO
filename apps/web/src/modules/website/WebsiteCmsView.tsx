@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../core/i18n/I18nContext';
 import { useTenant } from '../../core/tenant/TenantContext';
 import {
@@ -54,7 +54,8 @@ import {
   getTenantInquiries,
   markTenantInquiryAsRead,
   deleteTenantInquiry,
-  getTenantUnreadCount
+  getTenantUnreadCount,
+  fetchTenantInquiriesFromCloud
 } from '../../core/inquiry/inquiryService';
 
 export const WebsiteCmsView: React.FC = () => {
@@ -81,7 +82,46 @@ export const WebsiteCmsView: React.FC = () => {
 
   const reloadInquiries = () => {
     setInquiries(getTenantInquiries(tenant?.id));
+    fetchTenantInquiriesFromCloud(tenant?.id).then((cloudList) => {
+      if (cloudList && cloudList.length > 0) {
+        setInquiries(cloudList);
+      }
+    });
   };
+
+  useEffect(() => {
+    reloadInquiries();
+
+    const handleTenantInquiry = (e: any) => {
+      if (!e.detail || !e.detail.tenantId || e.detail.tenantId === tenant?.id) {
+        reloadInquiries();
+      }
+    };
+    window.addEventListener('ngo_tenant_inquiry_added', handleTenantInquiry);
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === `ngo_tenant_inquiries_${tenant?.id || 'demo-jagorani'}`) {
+        reloadInquiries();
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel(`ngo_tenant_${tenant?.id || 'demo-jagorani'}_inquiries_channel`);
+        bc.onmessage = () => {
+          reloadInquiries();
+        };
+      }
+    } catch {}
+
+    return () => {
+      window.removeEventListener('ngo_tenant_inquiry_added', handleTenantInquiry);
+      window.removeEventListener('storage', handleStorage);
+      if (bc) bc.close();
+    };
+  }, [tenant?.id]);
 
   // Toggle Contact Form ON/OFF
   const handleToggleContactForm = () => {

@@ -139,6 +139,41 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
     ogImage.setAttribute('content', config.ogImageUrl);
   }, [config, isBangla]);
 
+  // Real-time listener for tenant config changes across tabs and windows
+  useEffect(() => {
+    const handleTenantConfigUpdate = (e: any) => {
+      if (e.detail && (!e.detail.tenantId || e.detail.tenantId === tenantId)) {
+        setConfig(e.detail);
+      } else {
+        setConfig(getStoredWebsiteConfig(tenantId));
+      }
+    };
+    window.addEventListener('ngo_tenant_config_changed', handleTenantConfigUpdate);
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === `ngo_website_config_${tenantId}`) {
+        setConfig(getStoredWebsiteConfig(tenantId));
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        bc = new BroadcastChannel(`ngo_tenant_${tenantId}_config_channel`);
+        bc.onmessage = (ev) => {
+          if (ev.data) setConfig(ev.data);
+        };
+      }
+    } catch {}
+
+    return () => {
+      window.removeEventListener('ngo_tenant_config_changed', handleTenantConfigUpdate);
+      window.removeEventListener('storage', handleStorage);
+      if (bc) bc.close();
+    };
+  }, [tenantId]);
+
   // 2. Auto-advance slider
   useEffect(() => {
     if (!config.sliderEnabled || config.sliderItems.length <= 1) return;
@@ -203,8 +238,18 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
 
   const handleTenantContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!senderName.trim()) {
+      alert(isBangla ? 'অনুগ্রহ করে আপনার নাম প্রদান করুন।' : 'Please provide your name.');
+      return;
+    }
     if (!senderPhone.trim()) {
-      alert(isBangla ? 'অনুগ্রহ করে আপনার মোবাইল নম্বর দিন' : 'Please provide your mobile number');
+      alert(isBangla ? 'অনুগ্রহ করে আপনার মোবাইল নম্বর দিন।' : 'Please provide your mobile number.');
+      return;
+    }
+
+    if (!senderCaptchaInput.trim()) {
+      setSenderCaptchaError(true);
+      alert(isBangla ? 'অনুগ্রহ করে সিকিউরিটি ক্যাপচার যোগফল লিখুন।' : 'Please enter the captcha answer.');
       return;
     }
 
@@ -213,18 +258,28 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
       .trim();
     if (parseInt(normalizedCaptcha, 10) !== expectedSenderCaptcha) {
       setSenderCaptchaError(true);
+      alert(
+        isBangla
+          ? 'ক্যাপচার উত্তর সঠিক হয়নি! পুনরায় হিসাব করে লিখুন।'
+          : 'Incorrect captcha sum! Please calculate and try again.'
+      );
       return;
     }
     setSenderCaptchaError(false);
 
     saveTenantInquiry(tenantId, {
-      senderName: senderName || (isBangla ? 'নাম প্রকাশে অনিচ্ছুক' : 'Anonymous Member'),
-      senderPhone,
+      senderName: senderName.trim(),
+      senderPhone: senderPhone.trim(),
       subjectOrService: senderBranch,
-      message: senderInterest || (isBangla ? 'সদস্য ভর্তি ও সাধারণ সেবা অনুসন্ধান' : 'General inquiry')
+      message: senderInterest.trim() || (isBangla ? 'সদস্য ভর্তি ও সাধারণ সেবা অনুসন্ধান' : 'General inquiry')
     });
 
     setSenderSubmitted(true);
+    alert(
+      isBangla
+        ? 'ধন্যবাদ! আপনার বার্তা শাখা ব্যবস্থাপক ও এডমিনের নিকট সফলভাবে পাঠানো হয়েছে।'
+        : 'Thank you! Your inquiry has been sent to branch management.'
+    );
     setSenderName('');
     setSenderPhone('');
     setSenderInterest('');
