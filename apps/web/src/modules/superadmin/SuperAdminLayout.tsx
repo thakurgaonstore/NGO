@@ -16,8 +16,10 @@ import {
   Layers,
   Menu,
   X,
-  Globe
+  Globe,
+  MessageSquare
 } from 'lucide-react';
+import { getPlatformUnreadCount } from '../../core/inquiry/inquiryService';
 
 interface SuperAdminLayoutProps {
   currentTab: string;
@@ -37,9 +39,16 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   const { isBangla, t } = useI18n();
   const { signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const platformUnreadCount = getPlatformUnreadCount();
 
   const navItems = [
     { id: 'overview', label: isBangla ? 'গ্লোবাল ড্যাশবোর্ড' : 'Overview', icon: LayoutDashboard },
+    {
+      id: 'inquiries',
+      label: isBangla ? 'ওয়েবসাইট ইনবক্স ও লিড' : 'Inquiries & Leads',
+      icon: MessageSquare,
+      badge: platformUnreadCount > 0 ? platformUnreadCount : undefined
+    },
     { id: 'tenants', label: isBangla ? 'এনজিও টেন্যান্টসমূহ' : 'Tenants', icon: Building2 },
     { id: 'plans', label: isBangla ? 'সাবস্ক্রিপশন প্ল্যান' : 'Plans & Pricing', icon: SlidersHorizontal },
     { id: 'platform_cms', label: isBangla ? 'প্ল্যাটফর্ম ওয়েবসাইট সিএমএস' : 'Platform Website CMS', icon: Globe },
@@ -75,14 +84,21 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
                 <button
                   key={item.id}
                   onClick={() => onTabChange(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all ${
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge !== undefined && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-600 text-white animate-pulse">
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -161,12 +177,19 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
                     onTabChange(item.id);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold ${
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold ${
                     isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge !== undefined && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-600 text-white animate-pulse">
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}

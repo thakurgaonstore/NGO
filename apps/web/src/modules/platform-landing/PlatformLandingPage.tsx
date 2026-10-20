@@ -44,8 +44,11 @@ import {
   Lock,
   Headphones,
   Menu,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
+import { savePlatformInquiry } from '../../core/inquiry/inquiryService';
+import { SimpleCaptcha } from '../../components/shared/SimpleCaptcha';
 
 interface PlatformLandingPageProps {
   onNavigateToTenantPublic: (clientId: string) => void;
@@ -71,6 +74,11 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
   const [contactService, setContactService] = useState<string>('NGO & Microcredit ERP System');
   const [contactMessage, setContactMessage] = useState<string>('');
   const [contactSubmitted, setContactSubmitted] = useState<boolean>(false);
+
+  // Anti-Bot Captcha State
+  const [captchaInput, setCaptchaInput] = useState<string>('');
+  const [expectedCaptcha, setExpectedCaptcha] = useState<number>(0);
+  const [captchaError, setCaptchaError] = useState<boolean>(false);
 
   // Registered Client NGOs (from localStorage or defaults)
   const [registeredTenants, setRegisteredTenants] = useState<Tenant[]>(() => {
@@ -104,13 +112,32 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
       alert(isBangla ? 'অনুগ্রহ করে আপনার মোবাইল নম্বর প্রদান করুন' : 'Please provide your mobile number');
       return;
     }
+
+    // Verify Captcha (supports both English and Bengali digits)
+    const normalizedCaptcha = captchaInput
+      .replace(/[০-৯]/g, (d) => '০১২৩৪৫৬৭৮৯'.indexOf(d).toString())
+      .trim();
+    if (parseInt(normalizedCaptcha, 10) !== expectedCaptcha) {
+      setCaptchaError(true);
+      return;
+    }
+    setCaptchaError(false);
+
+    // Save Inquiry to Super Admin Inbox
+    savePlatformInquiry({
+      senderName: contactName,
+      senderPhone: contactPhone,
+      organization: contactOrg,
+      subjectOrService: contactService,
+      message: contactMessage
+    });
+
     setContactSubmitted(true);
-    setTimeout(() => {
-      setContactName('');
-      setContactOrg('');
-      setContactPhone('');
-      setContactMessage('');
-    }, 1000);
+    setContactName('');
+    setContactOrg('');
+    setContactPhone('');
+    setContactMessage('');
+    setCaptchaInput('');
   };
 
   const getServiceIcon = (iconName: string) => {
@@ -751,7 +778,35 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-4">
-                {contactSubmitted ? (
+                {!config.contactFormEnabled ? (
+                  <div className="p-8 text-center space-y-4 bg-muted/40 border border-border rounded-xl">
+                    <div className="w-12 h-12 rounded-full bg-amber-500/15 text-amber-600 flex items-center justify-center mx-auto">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <h4 className="font-bold text-base text-foreground">
+                      {isBangla ? 'বার্তা গ্রহণ সাময়িকভাবে বন্ধ আছে' : 'Message Submission Temporarily Paused'}
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                      {isBangla ? config.contactFormClosedNoticeBn : config.contactFormClosedNoticeEn}
+                    </p>
+                    <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <a
+                        href={`tel:${config.hotline}`}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg shadow-sm hover:opacity-90 transition-all"
+                      >
+                        <Phone className="w-3.5 h-3.5" />
+                        <span>{isBangla ? 'হটলাইনে কল করুন' : 'Call Hotline'}</span>
+                      </a>
+                      <a
+                        href={`mailto:${config.email}`}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-input text-foreground text-xs font-semibold rounded-lg hover:bg-muted transition-all"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        <span>{config.email}</span>
+                      </a>
+                    </div>
+                  </div>
+                ) : contactSubmitted ? (
                   <div className="p-6 text-center space-y-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl animate-in zoom-in-95">
                     <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
                     <h4 className="font-bold text-base text-foreground">
@@ -837,6 +892,16 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
                         className="w-full text-xs p-2.5 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
                       />
                     </div>
+
+                    {/* Anti-Bot Captcha */}
+                    <SimpleCaptcha
+                      isBangla={isBangla}
+                      value={captchaInput}
+                      onChange={setCaptchaInput}
+                      onAnswerChange={setExpectedCaptcha}
+                      hasError={captchaError}
+                      errorMessage={isBangla ? 'ক্যাপচার উত্তর সঠিক নয়! অনুগ্রহ করে সঠিক যোগফল দিন।' : 'Incorrect captcha answer! Please enter the correct sum.'}
+                    />
 
                     <Button type="submit" className="w-full text-xs font-bold shadow-md">
                       <Send className="w-3.5 h-3.5 mr-1.5" />

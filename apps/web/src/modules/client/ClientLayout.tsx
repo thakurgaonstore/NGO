@@ -3,6 +3,7 @@ import { useI18n } from '../../core/i18n/I18nContext';
 import { useTenant } from '../../core/tenant/TenantContext';
 import { useAuth } from '../../core/auth/AuthContext';
 import { ERP_MODULES } from '@ngo-erp/shared';
+import { getTenantUnreadCount } from '../../core/inquiry/inquiryService';
 import { LanguageToggle } from '../../components/shared/LanguageToggle';
 import { ThemeToggle } from '../../components/shared/ThemeToggle';
 import { QuotaBadge } from '../../components/shared/QuotaBadge';
@@ -166,18 +167,26 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
               {enabledModulesList.map((mod) => {
                 const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
                 const isActive = currentModule === mod.id;
+                const unreadBadge = mod.id === 'website' ? getTenantUnreadCount(tenant?.id) : 0;
                 return (
                   <button
                     key={mod.id}
                     onClick={() => onModuleChange(mod.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                       isActive
                         ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{isBangla ? mod.name.bn : mod.name.en}</span>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="truncate">{isBangla ? mod.name.bn : mod.name.en}</span>
+                    </div>
+                    {unreadBadge > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-600 text-white animate-pulse">
+                        {unreadBadge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -280,6 +289,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
               {enabledModulesList.map((mod) => {
                 const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
                 const isActive = currentModule === mod.id;
+                const unreadBadge = mod.id === 'website' ? getTenantUnreadCount(tenant?.id) : 0;
                 return (
                   <button
                     key={mod.id}
@@ -287,12 +297,19 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
                       onModuleChange(mod.id);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold ${
                       isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{isBangla ? mod.name.bn : mod.name.en}</span>
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-4 h-4" />
+                      <span>{isBangla ? mod.name.bn : mod.name.en}</span>
+                    </div>
+                    {unreadBadge > 0 && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-600 text-white animate-pulse">
+                        {unreadBadge}
+                      </span>
+                    )}
                   </button>
                 );
               })}

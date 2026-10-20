@@ -120,6 +120,11 @@ export interface PlatformWebsiteConfig {
   copyrightTextBn: string;
   copyrightTextEn: string;
 
+  // Contact Form & Inquiries Controls
+  contactFormEnabled: boolean;
+  contactFormClosedNoticeBn: string;
+  contactFormClosedNoticeEn: string;
+
   // SEO & Meta
   metaTitleBn: string;
   metaTitleEn: string;
@@ -546,6 +551,10 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformWebsiteConfig = {
   copyrightTextBn: '© ২০২৬ এন্টিগ্র্যাভিটি আইটি সলিউশনস। সর্বস্বত্ব সংরক্ষিত।',
   copyrightTextEn: '© 2026 Antigravity IT Solutions. All rights reserved.',
 
+  contactFormEnabled: true,
+  contactFormClosedNoticeBn: 'বর্তমানে প্রচুর বার্তার কারণে আমাদের অনলাইন ফর্মটি সাময়িকভাবে স্থগিত রাখা হয়েছে। যে কোনো জরুরি তথ্য বা ডেমো বুকিংয়ের জন্য সরাসরি আমাদের হটলাইনে কল করুন অথবা ইমেইল করুন।',
+  contactFormClosedNoticeEn: 'Online consultation submissions are temporarily paused. For urgent inquiries or live demos, please call our hotline directly or email us.',
+
   metaTitleBn: 'Antigravity IT — আধুনিক এনজিও ইআরপি ও এন্টারপ্রাইজ সফটওয়্যার',
   metaTitleEn: 'Antigravity IT — NGO ERP & Enterprise Software Solutions',
   metaDescriptionBn: 'বাংলাদেশের এনজিও, স্কুল, হাসপাতাল ও রিটেইলের জন্য আধুনিক ক্লাউড সফটওয়্যার ও ওয়েবসাইট তৈরি সেবা।',
@@ -581,3 +590,7 @@ export function savePlatformWebsiteConfig(config: PlatformWebsiteConfig) {
     console.warn('Could not save platform CMS:', err);
   }
 }
+
+export type PlatformCmsConfig = PlatformWebsiteConfig;
+export const getStoredPlatformCmsConfig = loadPlatformWebsiteConfig;
+export const saveStoredPlatformCmsConfig = savePlatformWebsiteConfig;

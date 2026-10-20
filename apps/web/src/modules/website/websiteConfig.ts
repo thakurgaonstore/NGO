@@ -95,6 +95,11 @@ export interface NgoWebsiteConfig {
   footerMraBadgeEnabled: boolean;
   footerCopyrightTextBn: string;
   footerCopyrightTextEn: string;
+
+  // Contact Form & Inquiries Controls
+  contactFormEnabled: boolean;
+  contactFormClosedNoticeBn: string;
+  contactFormClosedNoticeEn: string;
 }
 
 export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
@@ -247,7 +252,11 @@ export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
   footerNewsletterTextEn: 'Subscribe to our newsletter for development updates and circulars.',
   footerMraBadgeEnabled: true,
   footerCopyrightTextBn: '© ২০২৬ জাগরণী উন্নয়ন ফাউন্ডেশন। সর্বস্বত্ব সংরক্ষিত।',
-  footerCopyrightTextEn: '© 2026 Jagorani Development Foundation. All rights reserved.'
+  footerCopyrightTextEn: '© 2026 Jagorani Development Foundation. All rights reserved.',
+
+  contactFormEnabled: true,
+  contactFormClosedNoticeBn: 'সম্মানিত গ্রাহক ও সদস্যবৃন্দ, বর্তমানে আমাদের অনলাইন বার্তা গ্রহণ সাময়িকভাবে বন্ধ আছে। জরুরি সেবা, সঞ্চয় ও ঋণের তথ্যের জন্য অনুগ্রহ করে আমাদের হেল্পলাইন নম্বরে সরাসরি যোগাযোগ করুন।',
+  contactFormClosedNoticeEn: 'Online message submissions are temporarily paused. Please reach out to our branch office or helpline for urgent services.'
 };
 
 export const getStoredWebsiteConfig = (tenantId?: string): NgoWebsiteConfig => {

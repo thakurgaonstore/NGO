@@ -263,6 +263,58 @@ export const PlatformCmsEditor: React.FC<{ onViewLiveWebsite: () => void }> = ({
                 />
               </div>
             </div>
+
+            {/* Platform Contact Form Controls */}
+            <div className="pt-4 border-t border-border space-y-4">
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-muted/40 border border-border">
+                <div>
+                  <h4 className="font-bold text-foreground text-xs">
+                    {isBangla ? 'অনলাইন বার্তা ও ডেমো রিকোয়েস্ট ফর্ম (Gateway Status)' : 'Online Contact & Demo Form Gateway'}
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {isBangla
+                      ? 'অতিরিক্ত বার্তার চাপের কারণে বন্ধ রাখতে চাইলে টিকচিহ্ন তুলে দিন। তখন ভিজিটরদের নোটিশ দেখানো হবে।'
+                      : 'Uncheck to temporarily pause contact form submissions on the main promotional landing page.'}
+                  </p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={config.contactFormEnabled}
+                    onChange={(e) => setConfig({ ...config, contactFormEnabled: e.target.checked })}
+                    className="w-4 h-4 rounded text-primary focus:ring-primary"
+                  />
+                  <span className={`text-xs font-bold ${config.contactFormEnabled ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {config.contactFormEnabled ? (isBangla ? 'চালু' : 'Enabled') : (isBangla ? 'বন্ধ' : 'Disabled')}
+                  </span>
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="font-semibold text-muted-foreground mb-1 block">
+                    {isBangla ? 'ফর্ম বন্ধ থাকাকালীন নোটিশ (বাংলা)' : 'Form Closed Notice (Bengali)'}
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={config.contactFormClosedNoticeBn}
+                    onChange={(e) => setConfig({ ...config, contactFormClosedNoticeBn: e.target.value })}
+                    className="w-full text-xs p-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="font-semibold text-muted-foreground mb-1 block">
+                    {isBangla ? 'Form Closed Notice (English)' : 'Form Closed Notice (English)'}
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={config.contactFormClosedNoticeEn}
+                    onChange={(e) => setConfig({ ...config, contactFormClosedNoticeEn: e.target.value })}
+                    className="w-full text-xs p-2.5 rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

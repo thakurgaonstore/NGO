@@ -39,6 +39,8 @@ import {
   DollarSign,
   AlertCircle
 } from 'lucide-react';
+import { saveTenantInquiry } from '../../core/inquiry/inquiryService';
+import { SimpleCaptcha } from '../../components/shared/SimpleCaptcha';
 
 interface PublicLandingPageProps {
   tenantId?: string;
@@ -53,6 +55,16 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
 }) => {
   const [config, setConfig] = useState<NgoWebsiteConfig>(() => getStoredWebsiteConfig(tenantId));
   const [isBangla, setIsBangla] = useState<boolean>(true);
+
+  // Tenant Contact Form State
+  const [senderName, setSenderName] = useState<string>('');
+  const [senderPhone, setSenderPhone] = useState<string>('');
+  const [senderBranch, setSenderBranch] = useState<string>('সাভার মূল শাখা (ঢাকা)');
+  const [senderInterest, setSenderInterest] = useState<string>('');
+  const [senderCaptchaInput, setSenderCaptchaInput] = useState<string>('');
+  const [expectedSenderCaptcha, setExpectedSenderCaptcha] = useState<number>(0);
+  const [senderCaptchaError, setSenderCaptchaError] = useState<boolean>(false);
+  const [senderSubmitted, setSenderSubmitted] = useState<boolean>(false);
 
   // Active Hero Slide
   const [currentSlideIndex, setCurrentSlideIndex] = useState<number>(0);
@@ -187,6 +199,36 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
+  };
+
+  const handleTenantContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senderPhone.trim()) {
+      alert(isBangla ? 'অনুগ্রহ করে আপনার মোবাইল নম্বর দিন' : 'Please provide your mobile number');
+      return;
+    }
+
+    const normalizedCaptcha = senderCaptchaInput
+      .replace(/[০-৯]/g, (d) => '০১২৩৪৫৬৭৮৯'.indexOf(d).toString())
+      .trim();
+    if (parseInt(normalizedCaptcha, 10) !== expectedSenderCaptcha) {
+      setSenderCaptchaError(true);
+      return;
+    }
+    setSenderCaptchaError(false);
+
+    saveTenantInquiry(tenantId, {
+      senderName: senderName || (isBangla ? 'নাম প্রকাশে অনিচ্ছুক' : 'Anonymous Member'),
+      senderPhone,
+      subjectOrService: senderBranch,
+      message: senderInterest || (isBangla ? 'সদস্য ভর্তি ও সাধারণ সেবা অনুসন্ধান' : 'General inquiry')
+    });
+
+    setSenderSubmitted(true);
+    setSenderName('');
+    setSenderPhone('');
+    setSenderInterest('');
+    setSenderCaptchaInput('');
   };
 
   return (
@@ -1139,38 +1181,156 @@ export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
             </div>
           </div>
 
-          <div className="lg:col-span-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-base text-slate-900">{isBangla ? 'সদস্য ভর্তি বা তথ্য অনুসন্ধান বার্তা পাঠান' : 'Send Message / Inquire'}</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">আপনার নাম *</label>
-                <input type="text" placeholder="যেমন: রহিমা বেগম" className="w-full text-xs h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+          <div className="lg:col-span-6 bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
+            {config.contactFormEnabled === false ? (
+              <div className="p-6 bg-amber-50/90 border border-amber-200 rounded-2xl text-center space-y-4">
+                <div className="w-12 h-12 mx-auto rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-base mb-1">
+                    {isBangla ? 'অনলাইন বার্তা পাঠানো সাময়িকভাবে স্থগিত' : 'Online Messaging Temporarily Paused'}
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed max-w-md mx-auto">
+                    {isBangla
+                      ? config.contactFormClosedNoticeBn || 'অতিরিক্ত বার্তার চাপের কারণে অনলাইন ইনবক্স সাময়িকভাবে বন্ধ আছে। জরুরি তথ্যে হটলাইনে যোগাযোগ করুন।'
+                      : config.contactFormClosedNoticeEn || 'Due to high inquiry volume, online submissions are paused. Please reach us via hotline.'}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <a
+                    href={`tel:${config.hotline}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>{isBangla ? 'হটলাইনে কল করুন' : 'Call Hotline'}</span>
+                  </a>
+                  <a
+                    href={`mailto:${config.email}`}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold shadow-sm transition"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>{isBangla ? 'ইমেইল পাঠান' : 'Send Email'}</span>
+                  </a>
+                </div>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">মোবাইল নম্বর *</label>
-                <input type="text" placeholder="01712-000000" className="w-full text-xs h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono" />
+            ) : senderSubmitted ? (
+              <div className="p-8 bg-emerald-50 border border-emerald-200 rounded-2xl text-center space-y-4">
+                <div className="w-14 h-14 mx-auto rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-inner">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 text-lg mb-1">
+                    {isBangla ? 'আপনার বার্তা সফলভাবে গৃহীত হয়েছে!' : 'Message Received Successfully!'}
+                  </h4>
+                  <p className="text-xs text-slate-600 leading-relaxed max-w-md mx-auto">
+                    {isBangla
+                      ? 'ধন্যবাদ! আপনার বার্তা সংশ্লিষ্ট শাখা ব্যবস্থাপক ও এনজিও অ্যাডমিনের নিকট পাঠানো হয়েছে। অতি দ্রুত আপনার সাথে যোগাযোগ করা হবে।'
+                      : 'Thank you! Your inquiry has reached our branch management. We will get in touch soon.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSenderSubmitted(false)}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition"
+                >
+                  {isBangla ? 'আরেকটি বার্তা পাঠান' : 'Send Another Message'}
+                </button>
               </div>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 block mb-1">নিকটস্থ শাখা বা কেন্দ্র</label>
-              <select className="w-full text-xs h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
-                <option>সাভার মূল শাখা (ঢাকা)</option>
-                <option>চট্টগ্রাম আঞ্চলিক শাখা (আগ্রাবাদ)</option>
-                <option>রাজশাহী মাঠ শাখা</option>
-                <option>শিবগঞ্জ শাপলা কেন্দ্র (বগুড়া)</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 block mb-1">বার্তার বিষয় / আগ্রহ</label>
-              <textarea placeholder="আপনার আগ্রহের বিষয় (ডিপিএস সঞ্চয় / ক্ষুদ্রঋণ / অনুদান ইত্যাদি)..." className="w-full text-xs p-3 h-20 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-            </div>
-            <button
-              onClick={() => alert('ধন্যবাদ! আপনার বার্তা শাখা ব্যবস্থাপকের নিকট পাঠানো হয়েছে। অতি দ্রুত যোগাযোগ করা হবে।')}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>বার্তা পাঠান</span>
-            </button>
+            ) : (
+              <form onSubmit={handleTenantContactSubmit} className="space-y-4">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                  <h3 className="font-bold text-base text-slate-900">
+                    {isBangla ? 'সদস্য ভর্তি বা তথ্য অনুসন্ধান বার্তা পাঠান' : 'Send Message / Inquire'}
+                  </h3>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    {isBangla ? 'সরাসরি এডমিন ইনবক্স' : 'Direct to Admin'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      {isBangla ? 'আপনার নাম *' : 'Your Name *'}
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      placeholder={isBangla ? 'যেমন: রহিমা বেগম' : 'e.g. Rohima Begum'}
+                      className="w-full text-xs h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                      {isBangla ? 'মোবাইল নম্বর *' : 'Mobile Number *'}
+                    </label>
+                    <input
+                      type="tel"
+                      required
+                      value={senderPhone}
+                      onChange={(e) => setSenderPhone(e.target.value)}
+                      placeholder="01712-000000"
+                      className="w-full text-xs h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    {isBangla ? 'নিকটস্থ শাখা বা কেন্দ্র' : 'Nearest Branch / Center'}
+                  </label>
+                  <select
+                    value={senderBranch}
+                    onChange={(e) => setSenderBranch(e.target.value)}
+                    className="w-full text-xs h-10 px-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                  >
+                    <option value="সাভার মূল শাখা (ঢাকা)">সাভার মূল শাখা (ঢাকা)</option>
+                    <option value="চট্টগ্রাম আঞ্চলিক শাখা (আগ্রাবাদ)">চট্টগ্রাম আঞ্চলিক শাখা (আগ্রাবাদ)</option>
+                    <option value="রাজশাহী মাঠ শাখা">রাজশাহী মাঠ শাখা</option>
+                    <option value="শিবগঞ্জ শাপলা কেন্দ্র (বগুড়া)">শিবগঞ্জ শাপলা কেন্দ্র (বগুড়া)</option>
+                    <option value="সাধারণ অনুসন্ধান (হেড অফিস)">সাধারণ অনুসন্ধান (হেড অফিস)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    {isBangla ? 'বার্তার বিষয় / আগ্রহ' : 'Message / Topic of Interest'}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={senderInterest}
+                    onChange={(e) => setSenderInterest(e.target.value)}
+                    placeholder={
+                      isBangla
+                        ? 'আপনার আগ্রহের বিষয় (ডিপিএস সঞ্চয় / ক্ষুদ্রঋণ / সদস্য আবেদন ইত্যাদি)...'
+                        : 'Your inquiry details (DPS Savings / Microloan / Membership)...'
+                    }
+                    className="w-full text-xs p-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Anti-Bot Math Captcha */}
+                <div className="pt-1">
+                  <SimpleCaptcha
+                    isBangla={isBangla}
+                    value={senderCaptchaInput}
+                    onChange={setSenderCaptchaInput}
+                    onAnswerChange={setExpectedSenderCaptcha}
+                    hasError={senderCaptchaError}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <span>{isBangla ? 'বার্তা পাঠান' : 'Submit Message'}</span>
+                </button>
+              </form>
+            )}
           </div>
         </div>
       </section>

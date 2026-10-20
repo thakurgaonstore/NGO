@@ -8,6 +8,7 @@ import { LoginScreen } from './modules/auth/LoginScreen';
 import { SuperAdminLayout } from './modules/superadmin/SuperAdminLayout';
 import { SuperAdminDashboard } from './modules/superadmin/SuperAdminDashboard';
 import { PlansList } from './modules/superadmin/PlansList';
+import { SuperAdminInquiriesView } from './modules/superadmin/SuperAdminInquiriesView';
 import { ClientLayout } from './modules/client/ClientLayout';
 import { ClientDashboardShell } from './modules/client/ClientDashboardShell';
 import { SuspendedTenantScreen } from './modules/client/SuspendedTenantScreen';
@@ -280,6 +281,7 @@ const AppContent: React.FC = () => {
             }}
           />
         )}
+        {superAdminTab === 'inquiries' && <SuperAdminInquiriesView />}
         {superAdminTab === 'tenants' && (
           <SuperAdminDashboard
             onNavigateToTenantApp={(tenantId) => {
