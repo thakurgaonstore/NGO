@@ -9,7 +9,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Badge } from '../../components/ui/badge';
 import { Dialog } from '../../components/ui/dialog';
 import { LanguageToggle } from '../../components/shared/LanguageToggle';
-import { ThemeToggle } from '../../components/shared/ThemeToggle';
 import {
   Layers,
   Lock,
@@ -156,7 +155,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
 
         <div className="flex items-center gap-2">
           <LanguageToggle />
-          <ThemeToggle />
         </div>
       </div>
 

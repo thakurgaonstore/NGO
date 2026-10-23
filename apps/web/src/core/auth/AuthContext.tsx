@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { DEFAULT_DEMO_TENANTS } from '../tenant/TenantResolver';
+import { isTenantDeleted } from '../tenant/tenantCleanupService';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
@@ -127,16 +128,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 2. Lookup Tenant by Client ID or Subdomain
+      if (isTenantDeleted(cleanClientId)) {
+        return {
+          success: false,
+          error: 'এই এনজিও অ্যাকাউন্টটি সিস্টেম থেকে মুছে ফেলা হয়েছে।'
+        };
+      }
+
       const rawTenants = localStorage.getItem('ngo_registered_tenants');
-      const registeredTenants = rawTenants ? JSON.parse(rawTenants) : DEFAULT_DEMO_TENANTS;
+      const registeredTenants = rawTenants ? JSON.parse(rawTenants) : [];
       const tenant = registeredTenants.find(
         (t: any) =>
-          t.clientId?.toUpperCase() === cleanClientId ||
-          t.subdomain?.toUpperCase() === cleanClientId ||
-          t.id?.toUpperCase() === cleanClientId
+          !isTenantDeleted(t.id) &&
+          !isTenantDeleted(t.clientId) &&
+          (t.clientId?.toUpperCase() === cleanClientId ||
+            t.subdomain?.toUpperCase() === cleanClientId ||
+            t.id?.toUpperCase() === cleanClientId)
       );
 
       const targetTenantId = tenant ? tenant.id : cleanClientId.toLowerCase();
+      if (isTenantDeleted(targetTenantId)) {
+        return {
+          success: false,
+          error: 'এই এনজিও অ্যাকাউন্টটি সিস্টেম থেকে মুছে ফেলা হয়েছে।'
+        };
+      }
 
       // 3. Check registered staff in this tenant
       const staffList = JSON.parse(localStorage.getItem(`ngo_users_${targetTenantId}`) || '[]');
@@ -197,8 +213,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       }
 
-      // Fallback for default demo Jagorani
-      if (cleanClientId === 'JAGORANI' || cleanClientId === 'DEMO-JAGORANI') {
+      // Fallback for default demo Jagorani (only if not deleted)
+      if (
+        !isTenantDeleted('demo-jagorani') &&
+        !isTenantDeleted('JAGORANI') &&
+        (cleanClientId === 'JAGORANI' || cleanClientId === 'DEMO-JAGORANI')
+      ) {
         loginAsTenantMock('owner', 'demo-jagorani');
         return { success: true };
       }

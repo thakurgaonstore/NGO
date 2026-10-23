@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../core/i18n/I18nContext';
 import { useTenant } from '../../core/tenant/TenantContext';
 import { Tenant, toBanglaDigits, formatCurrency } from '@ngo-erp/shared';
+import { isTenantDeleted } from '../../core/tenant/tenantCleanupService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -110,32 +111,65 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
     const saved = localStorage.getItem('ngo_registered_tenants');
     if (saved !== null) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId));
+        }
       } catch (e) {
         console.warn('Failed to parse saved tenants:', e);
       }
     }
-    return INITIAL_DEMO_TENANTS;
-  });
 
-  useEffect(() => {
-    if (!localStorage.getItem('ngo_registered_tenants')) {
-      localStorage.setItem('ngo_registered_tenants', JSON.stringify(INITIAL_DEMO_TENANTS));
+    // Only seed demo tenants on initial installation if never seeded before
+    if (!localStorage.getItem('ngo_has_seeded_initial')) {
+      const filtered = INITIAL_DEMO_TENANTS.filter((t) => !isTenantDeleted(t.id));
+      localStorage.setItem('ngo_has_seeded_initial', 'true');
+      localStorage.setItem('ngo_registered_tenants', JSON.stringify(filtered));
+      return filtered;
     }
-  }, []);
+
+    return [];
+  });
 
   const refreshTenants = () => {
     const saved = localStorage.getItem('ngo_registered_tenants');
     if (saved !== null) {
       try {
-        setTenants(JSON.parse(saved));
-        return;
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setTenants(parsed.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId)));
+          return;
+        }
       } catch (e) {
         console.warn('Failed to refresh tenants:', e);
       }
     }
-    setTenants(INITIAL_DEMO_TENANTS);
+    setTenants([]);
   };
+
+  useEffect(() => {
+    const handleTenantDeleted = () => {
+      refreshTenants();
+    };
+    window.addEventListener('ngo_tenant_deleted', handleTenantDeleted);
+    window.addEventListener('storage', handleTenantDeleted);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel('ngo_tenant_channel');
+      bc.onmessage = (msg) => {
+        if (msg.data?.type === 'TENANT_DELETED') {
+          refreshTenants();
+        }
+      };
+    } catch {}
+
+    return () => {
+      window.removeEventListener('ngo_tenant_deleted', handleTenantDeleted);
+      window.removeEventListener('storage', handleTenantDeleted);
+      bc?.close();
+    };
+  }, []);
 
   const handleImpersonate = async (tenantId: string) => {
     await switchTenant(tenantId);
@@ -150,7 +184,6 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
   };
 
   const handleDeleteTenant = (tenantId: string) => {
-    // Handled in TenantsList confirmation modal
     refreshTenants();
   };
 

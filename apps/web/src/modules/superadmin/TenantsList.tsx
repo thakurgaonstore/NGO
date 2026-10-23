@@ -8,7 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../components/ui/table';
 import { Dialog } from '../../components/ui/dialog';
 import { TenantProvisioningWizard } from './TenantProvisioningWizard';
-import { cascadeDeleteTenant } from '../../core/tenant/tenantCleanupService';
+import { cascadeDeleteTenant, isTenantDeleted } from '../../core/tenant/tenantCleanupService';
 import {
   Plus,
   Search,
@@ -63,9 +63,11 @@ export const TenantsList: React.FC<TenantsListProps> = ({
       const result = await cascadeDeleteTenant(deletingTenant, (p) => {
         setDeleteProgress(p.step);
       });
+      const deletedId = deletingTenant.id;
       setIsDeleting(false);
       setDeletingTenant(null);
       setConfirmText('');
+      onDeleteTenant?.(deletedId);
       onRefresh();
       alert(result.message);
     } catch (err: any) {
@@ -155,6 +157,10 @@ export const TenantsList: React.FC<TenantsListProps> = ({
   };
 
   const filteredTenants = tenants.filter((tenant) => {
+    if (isTenantDeleted(tenant.id) || isTenantDeleted(tenant.clientId) || isTenantDeleted(tenant.subdomain)) {
+      return false;
+    }
+
     const matchesSearch =
       tenant.name.en.toLowerCase().includes(searchQuery.toLowerCase()) ||
       tenant.name.bn.toLowerCase().includes(searchQuery.toLowerCase()) ||

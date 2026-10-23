@@ -1,3 +1,5 @@
+import { isTenantDeleted } from './tenantCleanupService';
+
 export interface TenantResolutionResult {
   tenantId: string | null;
   clientId: string | null;
@@ -7,6 +9,7 @@ export interface TenantResolutionResult {
   isPublicLanding: boolean;
   isPlatformHome: boolean;
   isTenantExplicitLogin: boolean;
+  isTenantDeleted?: boolean;
   activePath: string;
 }
 
@@ -59,34 +62,19 @@ export class TenantResolver {
   }
 
   /**
-   * Checks if host belongs to default shared platform hosts
-   */
-  public static isPlatformDomain(host: string): boolean {
-    const clean = this.normalizeDomain(host);
-    if (!clean) return true;
-    if (clean === 'localhost' || clean === '127.0.0.1') return true;
-    if (clean.endsWith('.pages.dev')) return true;
-    if (clean.endsWith('.web.app')) return true;
-    if (clean.endsWith('.firebaseapp.com')) return true;
-    return false;
-  }
-
-  /**
-   * Resolves the current tenant identifier from the browser environment
+   * Resolves tenant information based on window.location
    */
   public static resolveFromLocation(): TenantResolutionResult {
     const url = new URL(window.location.href);
     const hostname = window.location.hostname.toLowerCase();
     const pathname = window.location.pathname;
-    const segments = pathname.split('/').filter(Boolean);
-    const firstSegment = segments[0] ? segments[0].toLowerCase() : '';
-    const secondSegment = segments[1] ? segments[1].toLowerCase() : '';
+    const pathSegments = pathname.split('/').filter(Boolean);
+    const firstSegment = pathSegments[0]?.toLowerCase();
+    const secondSegment = pathSegments[1]?.toLowerCase();
 
-    // Check for domain simulation in development/testing (?domain=www.jagoranibd.org or ?custom_domain=...)
-    const simDomain = url.searchParams.get('custom_domain') ||
-                      url.searchParams.get('domain') ||
-                      url.searchParams.get('test_domain');
-    const effectiveHost = simDomain ? simDomain.toLowerCase() : hostname;
+    // Query domain override for testing (e.g. ?domain=jagorani.org)
+    const queryDomain = url.searchParams.get('domain');
+    const effectiveHost = queryDomain ? this.normalizeDomain(queryDomain) : hostname;
 
     // 1. Is this explicitly the Super Admin portal? (/mahinerp or /superadmin or admin.*)
     const isSuperAdmin = pathname.startsWith('/mahinerp') ||
@@ -108,9 +96,6 @@ export class TenantResolver {
     }
 
     // 2. Custom Domain Resolution (e.g. "www.jagoranibd.org" or "jagorani.org")
-    // When an NGO has a custom domain:
-    // - Root (domain/) directly displays their NGO public landing page (NO client ID needed!)
-    // - /cerp or /login displays their staff ERP login
     const customTenant = this.findTenantByCustomDomain(effectiveHost);
     if (customTenant) {
       const isLogin = pathname.startsWith('/cerp') || pathname.startsWith('/login');
@@ -134,14 +119,65 @@ export class TenantResolver {
     if (((isLocalhost && parts.length >= 2 && parts[0] !== 'localhost') || (!isLocalhost && parts.length >= 3)) && !isPagesDev) {
       const potentialSubdomain = parts[0];
       if (potentialSubdomain !== 'www' && potentialSubdomain !== 'app' && potentialSubdomain !== 'admin') {
+        if (isTenantDeleted(potentialSubdomain)) {
+          return {
+            tenantId: null,
+            clientId: null,
+            source: 'subdomain',
+            isSuperAdminPortal: false,
+            isCustomDomainOrSubdomain: true,
+            isPublicLanding: false,
+            isPlatformHome: false,
+            isTenantExplicitLogin: false,
+            isTenantDeleted: true,
+            activePath: pathname
+          };
+        }
         const tenantMatch = this.findRegisteredTenant(potentialSubdomain);
+        if (tenantMatch) {
+          const isLogin = pathname.startsWith('/cerp') || pathname.startsWith('/login');
+          return {
+            tenantId: tenantMatch.id,
+            clientId: tenantMatch.clientId,
+            source: 'subdomain',
+            isSuperAdminPortal: false,
+            isCustomDomainOrSubdomain: true,
+            isPublicLanding: !isLogin,
+            isPlatformHome: false,
+            isTenantExplicitLogin: isLogin,
+            activePath: pathname
+          };
+        }
+      }
+    }
+
+    // 4. Query parameter (?tenant=T1001 or ?tenant=jagorani or ?clientId=jagorani)
+    const tenantParam = url.searchParams.get('tenant') || url.searchParams.get('clientId');
+    if (tenantParam) {
+      if (isTenantDeleted(tenantParam)) {
+        return {
+          tenantId: null,
+          clientId: null,
+          source: 'query',
+          isSuperAdminPortal: false,
+          isCustomDomainOrSubdomain: false,
+          isPublicLanding: false,
+          isPlatformHome: false,
+          isTenantExplicitLogin: false,
+          isTenantDeleted: true,
+          activePath: pathname
+        };
+      }
+      const tenantMatch = this.findRegisteredTenant(tenantParam);
+      if (tenantMatch) {
+        this.cacheTenantId(tenantMatch.id);
         const isLogin = pathname.startsWith('/cerp') || pathname.startsWith('/login');
         return {
-          tenantId: tenantMatch ? tenantMatch.id : potentialSubdomain.toLowerCase(),
-          clientId: tenantMatch ? tenantMatch.clientId : potentialSubdomain.toUpperCase(),
-          source: 'subdomain',
+          tenantId: tenantMatch.id,
+          clientId: tenantMatch.clientId,
+          source: 'query',
           isSuperAdminPortal: false,
-          isCustomDomainOrSubdomain: true,
+          isCustomDomainOrSubdomain: false,
           isPublicLanding: !isLogin,
           isPlatformHome: false,
           isTenantExplicitLogin: isLogin,
@@ -150,46 +186,39 @@ export class TenantResolver {
       }
     }
 
-    // 4. Query parameter (?tenant=T1001 or ?tenant=jagorani or ?clientId=jagorani)
-    const tenantParam = url.searchParams.get('tenant') || url.searchParams.get('clientId');
-    if (tenantParam) {
-      const tenantMatch = this.findRegisteredTenant(tenantParam);
-      const finalId = tenantMatch ? tenantMatch.id : tenantParam.toLowerCase();
-      const finalCode = tenantMatch ? tenantMatch.clientId : tenantParam.toUpperCase();
-      this.cacheTenantId(finalId);
-      const isLogin = pathname.startsWith('/cerp') || pathname.startsWith('/login');
-      return {
-        tenantId: finalId,
-        clientId: finalCode,
-        source: 'query',
-        isSuperAdminPortal: false,
-        isCustomDomainOrSubdomain: false,
-        isPublicLanding: !isLogin,
-        isPlatformHome: false,
-        isTenantExplicitLogin: isLogin,
-        activePath: pathname
-      };
-    }
-
     // 5. Path-based Client routing on shared platform: domain/:clientID (e.g., /jagorani, /JAGORANI, /sheba)
     if (firstSegment && !this.RESERVED_PATHS.includes(firstSegment)) {
-      const tenantMatch = this.findRegisteredTenant(firstSegment);
-      const finalId = tenantMatch ? tenantMatch.id : firstSegment.toLowerCase();
-      const finalCode = tenantMatch ? tenantMatch.clientId : firstSegment.toUpperCase();
-      this.cacheTenantId(finalId);
+      if (isTenantDeleted(firstSegment)) {
+        return {
+          tenantId: null,
+          clientId: null,
+          source: 'path',
+          isSuperAdminPortal: false,
+          isCustomDomainOrSubdomain: false,
+          isPublicLanding: false,
+          isPlatformHome: false,
+          isTenantExplicitLogin: false,
+          isTenantDeleted: true,
+          activePath: pathname
+        };
+      }
 
-      const isSubLogin = secondSegment === 'login' || secondSegment === 'cerp';
-      return {
-        tenantId: finalId,
-        clientId: finalCode,
-        source: 'path',
-        isSuperAdminPortal: false,
-        isCustomDomainOrSubdomain: false,
-        isPublicLanding: !isSubLogin,
-        isPlatformHome: false,
-        isTenantExplicitLogin: isSubLogin,
-        activePath: pathname
-      };
+      const tenantMatch = this.findRegisteredTenant(firstSegment);
+      if (tenantMatch) {
+        this.cacheTenantId(tenantMatch.id);
+        const isSubLogin = secondSegment === 'login' || secondSegment === 'cerp';
+        return {
+          tenantId: tenantMatch.id,
+          clientId: tenantMatch.clientId,
+          source: 'path',
+          isSuperAdminPortal: false,
+          isCustomDomainOrSubdomain: false,
+          isPublicLanding: !isSubLogin,
+          isPlatformHome: false,
+          isTenantExplicitLogin: isSubLogin,
+          activePath: pathname
+        };
+      }
     }
 
     // 6. Explicit Generic Login (/cerp or /login) on Main Platform
@@ -226,29 +255,46 @@ export class TenantResolver {
    * Helper to look up a tenant in registered tenants by id, clientId, or subdomain
    */
   public static findRegisteredTenant(slug: string): { id: string; clientId: string } | null {
+    if (!slug) return null;
     const lowerSlug = slug.toLowerCase();
+    if (isTenantDeleted(lowerSlug)) {
+      return null;
+    }
+
     try {
       const saved = localStorage.getItem('ngo_registered_tenants');
-      const list = saved ? JSON.parse(saved) : DEFAULT_DEMO_TENANTS;
-      const found = list.find(
-        (t: any) =>
-          t.id?.toLowerCase() === lowerSlug ||
-          t.clientId?.toLowerCase() === lowerSlug ||
-          t.subdomain?.toLowerCase() === lowerSlug
-      );
-      if (found) {
-        return { id: found.id, clientId: found.clientId };
+      if (saved !== null) {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) {
+          const found = list.find(
+            (t: any) =>
+              t.id?.toLowerCase() === lowerSlug ||
+              t.clientId?.toLowerCase() === lowerSlug ||
+              t.subdomain?.toLowerCase() === lowerSlug
+          );
+          if (found && !isTenantDeleted(found.id) && !isTenantDeleted(found.clientId) && !isTenantDeleted(found.subdomain)) {
+            return { id: found.id, clientId: found.clientId };
+          }
+          // If registered_tenants exists, do NOT fall back to DEFAULT_DEMO_TENANTS!
+          return null;
+        }
       }
     } catch {}
 
-    const fallback = DEFAULT_DEMO_TENANTS.find(
-      (t) =>
-        t.id.toLowerCase() === lowerSlug ||
-        t.clientId.toLowerCase() === lowerSlug ||
-        t.subdomain.toLowerCase() === lowerSlug
-    );
-    if (fallback) {
-      return { id: fallback.id, clientId: fallback.clientId };
+    // Only if never initialized at all and not deleted:
+    if (!localStorage.getItem('ngo_has_seeded_initial')) {
+      const fallback = DEFAULT_DEMO_TENANTS.find(
+        (t) =>
+          !isTenantDeleted(t.id) &&
+          !isTenantDeleted(t.clientId) &&
+          !isTenantDeleted(t.subdomain) &&
+          (t.id.toLowerCase() === lowerSlug ||
+            t.clientId.toLowerCase() === lowerSlug ||
+            t.subdomain.toLowerCase() === lowerSlug)
+      );
+      if (fallback) {
+        return { id: fallback.id, clientId: fallback.clientId };
+      }
     }
     return null;
   }
@@ -258,18 +304,24 @@ export class TenantResolver {
    */
   public static findTenantByCustomDomain(hostOrDomain: string): { id: string; clientId: string } | null {
     const cleanHost = this.normalizeDomain(hostOrDomain);
-    if (!cleanHost) return null;
+    if (!cleanHost || isTenantDeleted(cleanHost)) return null;
 
     // 1. Check registered tenants in localStorage
     try {
       const saved = localStorage.getItem('ngo_registered_tenants');
-      const list = saved ? JSON.parse(saved) : DEFAULT_DEMO_TENANTS;
-      for (const t of list) {
-        if (t.domain && this.normalizeDomain(t.domain) === cleanHost) {
-          return { id: t.id, clientId: t.clientId };
-        }
-        if (t.customDomain && this.normalizeDomain(t.customDomain) === cleanHost) {
-          return { id: t.id, clientId: t.clientId };
+      if (saved !== null) {
+        const list = JSON.parse(saved);
+        if (Array.isArray(list)) {
+          for (const t of list) {
+            if (isTenantDeleted(t.id) || isTenantDeleted(t.clientId) || isTenantDeleted(t.subdomain)) continue;
+            if (t.domain && this.normalizeDomain(t.domain) === cleanHost) {
+              return { id: t.id, clientId: t.clientId };
+            }
+            if (t.customDomain && this.normalizeDomain(t.customDomain) === cleanHost) {
+              return { id: t.id, clientId: t.clientId };
+            }
+          }
+          return null;
         }
       }
     } catch {}
@@ -279,65 +331,63 @@ export class TenantResolver {
       const dir = this.getCachedDirectory();
       if (dir) {
         const tid = dir[cleanHost] || dir['www.' + cleanHost] || dir[hostOrDomain.toLowerCase()];
-        if (tid) {
+        if (tid && !isTenantDeleted(tid)) {
           const tenantMatch = this.findRegisteredTenant(tid);
-          return {
-            id: tenantMatch ? tenantMatch.id : tid.toLowerCase(),
-            clientId: tenantMatch ? tenantMatch.clientId : tid.toUpperCase()
-          };
-        }
-      }
-    } catch {}
-
-    // 3. Check stored tenant website configs in localStorage
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('ngo_website_config_')) {
-          const configJson = localStorage.getItem(key);
-          if (configJson) {
-            const parsed = JSON.parse(configJson);
-            if (parsed.customDomain && this.normalizeDomain(parsed.customDomain) === cleanHost) {
-              const matchedId = key.replace('ngo_website_config_', '');
-              const tenantMatch = this.findRegisteredTenant(parsed.clientId || matchedId);
-              return {
-                id: tenantMatch ? tenantMatch.id : matchedId,
-                clientId: tenantMatch ? tenantMatch.clientId : (parsed.clientId || matchedId.toUpperCase())
-              };
-            }
+          if (tenantMatch) {
+            return tenantMatch;
           }
         }
       }
     } catch {}
 
-    // 4. Check fallback DEFAULT_DEMO_TENANTS
-    for (const t of DEFAULT_DEMO_TENANTS) {
-      if (t.domain && this.normalizeDomain(t.domain) === cleanHost) {
-        return { id: t.id, clientId: t.clientId };
+    // 3. Fallback demo domain (only if not deleted and never seeded)
+    if (!localStorage.getItem('ngo_has_seeded_initial')) {
+      const fallback = DEFAULT_DEMO_TENANTS.find(
+        (t) =>
+          !isTenantDeleted(t.id) &&
+          !isTenantDeleted(t.clientId) &&
+          t.domain &&
+          this.normalizeDomain(t.domain) === cleanHost
+      );
+      if (fallback) {
+        return { id: fallback.id, clientId: fallback.clientId };
       }
     }
 
     return null;
   }
 
-  public static cacheTenantId(tenantId: string) {
-    localStorage.setItem(this.CACHE_KEY, tenantId);
+  public static cacheTenantId(tenantId: string): void {
+    if (tenantId && !isTenantDeleted(tenantId)) {
+      localStorage.setItem(this.CACHE_KEY, tenantId);
+    }
   }
 
-  public static clearTenantCache() {
+  public static getCachedTenantId(): string | null {
+    const cached = localStorage.getItem(this.CACHE_KEY);
+    if (cached && isTenantDeleted(cached)) {
+      localStorage.removeItem(this.CACHE_KEY);
+      return null;
+    }
+    return cached;
+  }
+
+  public static clearCachedTenantId(): void {
     localStorage.removeItem(this.CACHE_KEY);
   }
 
-  public static setCachedDirectory(dir: Record<string, string>) {
-    localStorage.setItem(this.DIRECTORY_CACHE_KEY, JSON.stringify(dir));
+  public static getCachedDirectory(): Record<string, string> {
+    try {
+      const raw = localStorage.getItem(this.DIRECTORY_CACHE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
   }
 
-  public static getCachedDirectory(): Record<string, string> | null {
-    try {
-      const data = localStorage.getItem(this.DIRECTORY_CACHE_KEY);
-      return data ? JSON.parse(data) : null;
-    } catch {
-      return null;
-    }
+  public static updateDirectoryCache(domain: string, tenantId: string): void {
+    const dir = this.getCachedDirectory();
+    dir[this.normalizeDomain(domain)] = tenantId;
+    localStorage.setItem(this.DIRECTORY_CACHE_KEY, JSON.stringify(dir));
   }
 }

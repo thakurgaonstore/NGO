@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { I18nProvider } from './core/i18n/I18nContext';
 import { TenantProvider, useTenant } from './core/tenant/TenantContext';
 import { TenantResolver } from './core/tenant/TenantResolver';
+import { isTenantDeleted } from './core/tenant/tenantCleanupService';
 import { AuthProvider, useAuth } from './core/auth/AuthContext';
 import { LoginScreen } from './modules/auth/LoginScreen';
 import { SuperAdminLayout } from './modules/superadmin/SuperAdminLayout';
@@ -125,7 +126,54 @@ const AppContent: React.FC = () => {
 
   // Handle Client NGO Public Landing Page View (domain/:clientId, custom domain, or preview)
   if (currentView === 'public') {
-    const effectiveTenantId = tenant?.id || resolution.tenantId || 'demo-jagorani';
+    const isTargetDeleted =
+      resolution.isTenantDeleted ||
+      isTenantDeleted(resolution.tenantId) ||
+      isTenantDeleted(resolution.clientId) ||
+      isTenantDeleted(tenant?.id);
+
+    if (isTargetDeleted || (!tenant && !resolution.tenantId)) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-4">
+            <Database className="w-8 h-8" />
+          </div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">
+            এনজিওটি খুঁজে পাওয়া যায়নি বা মুছে ফেলা হয়েছে
+          </h2>
+          <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
+            এই এনজিও অ্যাকাউন্টটি বর্তমানে সিস্টেমে বিদ্যমান নেই অথবা সুপার এডমিন কর্তৃক স্থায়ীভাবে ডিলিট করা হয়েছে।
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <button
+              onClick={() => {
+                window.history.pushState({}, '', '/');
+                setCurrentView('platform_home');
+              }}
+              className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold shadow hover:opacity-90 transition-all"
+            >
+              ← মূল প্ল্যাটফর্ম হোমপেজ
+            </button>
+            <button
+              onClick={() => {
+                window.history.pushState({}, '', '/mahinerp');
+                setCurrentView('superadmin');
+              }}
+              className="px-5 py-2.5 rounded-lg border border-border text-foreground text-xs font-semibold hover:bg-muted transition-all"
+            >
+              সুপার এডমিন পোর্টাল
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    const effectiveTenantId = tenant?.id || resolution.tenantId;
+    if (!effectiveTenantId) {
+      setCurrentView('platform_home');
+      return null;
+    }
+
     const isCustomDomain = resolution.isCustomDomainOrSubdomain;
 
     return (
@@ -136,7 +184,7 @@ const AppContent: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="font-medium">
-                ক্লায়েন্ট এনজিও পোর্টাল: {tenant?.name?.bn || 'জাগরণী ফাউন্ডেশন'} ({resolution.clientId || 'JAGORANI'})
+                ক্লায়েন্ট এনজিও পোর্টাল: {tenant?.name?.bn || 'এনজিও পোর্টাল'} ({resolution.clientId || tenant?.clientId || ''})
               </span>
             </div>
             <div className="flex items-center gap-2">

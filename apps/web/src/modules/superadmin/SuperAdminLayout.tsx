@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useI18n } from '../../core/i18n/I18nContext';
 import { useAuth } from '../../core/auth/AuthContext';
 import { LanguageToggle } from '../../components/shared/LanguageToggle';
-import { ThemeToggle } from '../../components/shared/ThemeToggle';
 import { QuotaBadge } from '../../components/shared/QuotaBadge';
 import { Button } from '../../components/ui/button';
 import {
@@ -160,7 +159,6 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
           <div className="flex items-center gap-3">
             <QuotaBadge reads={4960} maxReads={50000} />
             <LanguageToggle />
-            <ThemeToggle />
           </div>
         </header>
 

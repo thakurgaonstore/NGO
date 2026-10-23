@@ -5,7 +5,6 @@ import { useAuth } from '../../core/auth/AuthContext';
 import { ERP_MODULES } from '@ngo-erp/shared';
 import { getTenantUnreadCount } from '../../core/inquiry/inquiryService';
 import { LanguageToggle } from '../../components/shared/LanguageToggle';
-import { ThemeToggle } from '../../components/shared/ThemeToggle';
 import { QuotaBadge } from '../../components/shared/QuotaBadge';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -279,7 +278,6 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
                 writes={tenant?.quotas?.estimatedDailyWrites || 45}
               />
               <LanguageToggle />
-              <ThemeToggle />
             </div>
           </header>
 

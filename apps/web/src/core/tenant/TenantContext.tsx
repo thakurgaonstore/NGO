@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Tenant, TenantSettings } from '@ngo-erp/shared';
 import { TenantResolver, TenantResolutionResult } from './TenantResolver';
+import { isTenantDeleted } from './tenantCleanupService';
 import { getOrCreateFirebaseInstance } from '../firebase/firebaseClient';
 import { doc, getDoc } from 'firebase/firestore';
 
@@ -19,18 +20,18 @@ interface TenantContextType {
 
 const TenantContext = createContext<TenantContextType | null>(null);
 
-// Default fallback settings for new / demo tenants
+// Default fallback settings for new / valid registered tenants
 const DEFAULT_FALLBACK_SETTINGS: TenantSettings = {
   orgName: {
-    en: 'Jagorani Development Foundation',
-    bn: 'জাগরণী উন্নয়ন ফাউন্ডেশন'
+    en: 'NGO ERP Tenant',
+    bn: 'এনজিও ইআরপি টেন্যান্ট'
   },
-  regNumber: 'NGO-DH-2024-892',
-  email: 'info@jagorani.org',
-  phone: '01711-223344',
+  regNumber: 'NGO-REG-2026',
+  email: 'info@ngoerp.xyz',
+  phone: '01700-000000',
   address: {
-    en: 'House 14, Road 5, Dhanmondi, Dhaka-1205',
-    bn: 'বাড়ি ১৪, রোড ৫, ধানমন্ডি, ঢাকা-১২০৫'
+    en: 'Dhaka, Bangladesh',
+    bn: 'ঢাকা, বাংলাদেশ'
   },
   primaryColor: '#0d9488', // Teal 600
   fiscalYearStartMonth: 7, // July
@@ -54,8 +55,31 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const loadTenantData = async (tenantId: string) => {
     setIsLoading(true);
     setError(null);
+
+    // If tenant is marked as deleted, immediately abort and set null
+    if (isTenantDeleted(tenantId)) {
+      setTenant(null);
+      setError('TENANT_DELETED');
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Connect to platform firestore to load tenant definition
+      // 1. Check registered list in localStorage first
+      let localMatch: Tenant | null = null;
+      try {
+        const saved = localStorage.getItem('ngo_registered_tenants');
+        if (saved) {
+          const list: Tenant[] = JSON.parse(saved);
+          localMatch = list.find(
+            (t) =>
+              !isTenantDeleted(t.id) &&
+              (t.id === tenantId || t.clientId?.toUpperCase() === tenantId.toUpperCase())
+          ) || null;
+        }
+      } catch {}
+
+      // 2. Connect to platform firestore to load tenant definition
       const { firestore } = getOrCreateFirebaseInstance();
       const tenantRef = doc(firestore, 'superadmin', 'tenants', tenantId);
       const snap = await getDoc(tenantRef);
@@ -72,70 +96,31 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } else {
           setSettings(DEFAULT_FALLBACK_SETTINGS);
         }
-      } else {
-        // Fallback demo tenant for local preview or unprovisioned tenant
-        const mockTenant: Tenant = {
-          id: tenantId,
-          clientId: tenantId.toUpperCase(),
-          subdomain: tenantId,
-          name: { en: 'Jagorani Foundation', bn: 'জাগরণী ফাউন্ডেশন' },
-          planId: 'growth',
-          status: 'active',
-          deploymentMode: 'MODE_A',
-          enabledModules: [
-            'dashboard',
-            'organization',
-            'members',
-            'projects',
-            'accounts',
-            'field_ops',
-            'hr_payroll',
-            'inventory',
-            'website',
-            'reports',
-            'settings'
-          ],
-          quotas: {
-            usersCount: 3,
-            branchesCount: 2,
-            estimatedDailyReads: 250,
-            estimatedDailyWrites: 45,
-            smsCreditsRemaining: 800
-          },
-          ownerEmail: 'director@jagorani.org',
-          createdAt: Date.now() - 30 * 86400000,
-          updatedAt: Date.now(),
-          expiresAt: Date.now() + 335 * 86400000
-        };
-        setTenant(mockTenant);
+      } else if (localMatch) {
+        setTenant(localMatch);
         setSettings(DEFAULT_FALLBACK_SETTINGS);
+      } else {
+        // Neither in cloud nor in registered list -> truly not found or deleted
+        setTenant(null);
+        setError('TENANT_NOT_FOUND');
       }
     } catch (err: any) {
-      console.warn('Tenant data lookup failed, using local tenant state:', err);
-      // Create local fallback
-      const mockTenant: Tenant = {
-        id: tenantId,
-        clientId: tenantId.toUpperCase(),
-        subdomain: tenantId,
-        name: { en: 'Demo NGO', bn: 'ডেমো এনজিও' },
-        planId: 'growth',
-        status: 'active',
-        deploymentMode: 'MODE_A',
-        enabledModules: ['dashboard', 'organization', 'members', 'accounts', 'website', 'settings'],
-        quotas: {
-          usersCount: 2,
-          branchesCount: 1,
-          estimatedDailyReads: 120,
-          estimatedDailyWrites: 15,
-          smsCreditsRemaining: 500
-        },
-        ownerEmail: 'admin@demo-ngo.org',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        expiresAt: Date.now() + 365 * 86400000
-      };
-      setTenant(mockTenant);
-      setSettings(DEFAULT_FALLBACK_SETTINGS);
+      console.warn('Tenant data lookup failed, checking local state:', err);
+      try {
+        const saved = localStorage.getItem('ngo_registered_tenants');
+        if (saved) {
+          const list: Tenant[] = JSON.parse(saved);
+          const found = list.find((t) => t.id === tenantId && !isTenantDeleted(t.id));
+          if (found) {
+            setTenant(found);
+            setSettings(DEFAULT_FALLBACK_SETTINGS);
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch {}
+      setTenant(null);
+      setError('TENANT_NOT_FOUND');
     } finally {
       setIsLoading(false);
     }
@@ -156,10 +141,22 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [resolution]);
 
+  // Listen to cross-tab tenant deletion events
+  useEffect(() => {
+    const handleTenantDeleted = (e: any) => {
+      const deletedId = e.detail?.tenantId;
+      if (tenant?.id === deletedId || resolution.tenantId === deletedId) {
+        setTenant(null);
+        setError('TENANT_DELETED');
+      }
+    };
+    window.addEventListener('ngo_tenant_deleted', handleTenantDeleted);
+    return () => window.removeEventListener('ngo_tenant_deleted', handleTenantDeleted);
+  }, [tenant, resolution]);
+
   // Apply Tenant's Primary Color Dynamically
   useEffect(() => {
     if (settings?.primaryColor) {
-      // In a real browser, we can convert hex to HSL or set CSS variables directly
       document.documentElement.style.setProperty('--primary-override', settings.primaryColor);
     }
   }, [settings]);
@@ -174,8 +171,11 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const clearImpersonation = () => {
     sessionStorage.removeItem('ngo_impersonating_tenant_id');
     setIsImpersonating(false);
-    const originalTenantId = resolution.tenantId || 'demo-jagorani';
-    loadTenantData(originalTenantId);
+    if (resolution.tenantId) {
+      loadTenantData(resolution.tenantId);
+    } else {
+      setTenant(null);
+    }
   };
 
   return (

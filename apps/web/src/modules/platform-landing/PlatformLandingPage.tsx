@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../core/i18n/I18nContext';
 import { LanguageToggle } from '../../components/shared/LanguageToggle';
-import { ThemeToggle } from '../../components/shared/ThemeToggle';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
@@ -50,6 +49,7 @@ import {
 } from 'lucide-react';
 import { savePlatformInquiry } from '../../core/inquiry/inquiryService';
 import { SimpleCaptcha } from '../../components/shared/SimpleCaptcha';
+import { isTenantDeleted } from '../../core/tenant/tenantCleanupService';
 
 interface PlatformLandingPageProps {
   onNavigateToTenantPublic: (clientId: string) => void;
@@ -81,19 +81,37 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
   const [expectedCaptcha, setExpectedCaptcha] = useState<number>(0);
   const [captchaError, setCaptchaError] = useState<boolean>(false);
 
-  // Registered Client NGOs (from localStorage or defaults)
+  // Registered Client NGOs (from localStorage, filtered against deletion blacklist)
   const [registeredTenants, setRegisteredTenants] = useState<Tenant[]>(() => {
     try {
       const saved = localStorage.getItem('ngo_registered_tenants');
-      return saved ? JSON.parse(saved) : [];
+      const list = saved ? JSON.parse(saved) : [];
+      return Array.isArray(list)
+        ? list.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId) && !isTenantDeleted(t.subdomain))
+        : [];
     } catch {
       return [];
     }
   });
 
+  const refreshRegisteredTenants = () => {
+    try {
+      const saved = localStorage.getItem('ngo_registered_tenants');
+      const list = saved ? JSON.parse(saved) : [];
+      setRegisteredTenants(
+        Array.isArray(list)
+          ? list.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId) && !isTenantDeleted(t.subdomain))
+          : []
+      );
+    } catch {
+      setRegisteredTenants([]);
+    }
+  };
+
   useEffect(() => {
     // 1. Initial sync from local storage
     setConfig(loadPlatformWebsiteConfig());
+    refreshRegisteredTenants();
 
     // 2. Fetch latest from Firestore cloud (handles fresh visitor browsers)
     fetchPlatformWebsiteConfigFromCloud().then((cloudCfg) => {
@@ -110,29 +128,48 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
     };
     window.addEventListener('ngo_platform_config_changed', handleConfigChange);
 
-    // 4. Listen to cross-tab storage changes
+    // 4. Listen to tenant deletion
+    const handleTenantDeleted = () => {
+      refreshRegisteredTenants();
+    };
+    window.addEventListener('ngo_tenant_deleted', handleTenantDeleted);
+
+    // 5. Listen to cross-tab storage changes
     const handleStorage = (e: StorageEvent) => {
       if (e.key === 'ngo_platform_website_cms') {
         setConfig(loadPlatformWebsiteConfig());
       }
+      if (e.key === 'ngo_registered_tenants' || e.key === 'ngo_deleted_tenant_ids') {
+        refreshRegisteredTenants();
+      }
     };
     window.addEventListener('storage', handleStorage);
 
-    // 5. BroadcastChannel for instant messaging
+    // 6. BroadcastChannels for instant cross-tab messaging
     let bc: BroadcastChannel | null = null;
+    let tenantBc: BroadcastChannel | null = null;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
         bc = new BroadcastChannel('ngo_platform_config_channel');
         bc.onmessage = (ev) => {
           if (ev.data) setConfig(ev.data);
         };
+
+        tenantBc = new BroadcastChannel('ngo_tenant_channel');
+        tenantBc.onmessage = (ev) => {
+          if (ev.data?.type === 'TENANT_DELETED') {
+            refreshRegisteredTenants();
+          }
+        };
       }
     } catch {}
 
     return () => {
       window.removeEventListener('ngo_platform_config_changed', handleConfigChange);
+      window.removeEventListener('ngo_tenant_deleted', handleTenantDeleted);
       window.removeEventListener('storage', handleStorage);
       if (bc) bc.close();
+      if (tenantBc) tenantBc.close();
     };
   }, []);
 
@@ -239,7 +276,6 @@ export const PlatformLandingPage: React.FC<PlatformLandingPageProps> = ({
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <LanguageToggle />
-              <ThemeToggle />
             </div>
             {config.showClientLoginBtn && (
               <button
