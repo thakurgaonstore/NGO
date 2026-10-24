@@ -8,7 +8,7 @@ import { Badge } from '../../components/ui/badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../components/ui/table';
 import { Dialog } from '../../components/ui/dialog';
 import { TenantProvisioningWizard } from './TenantProvisioningWizard';
-import { cascadeDeleteTenant, isTenantDeleted } from '../../core/tenant/tenantCleanupService';
+import { cascadeDeleteTenant, isTenantDeleted, wipeAllDemoData } from '../../core/tenant/tenantCleanupService';
 import {
   Plus,
   Search,
@@ -258,6 +258,17 @@ export const TenantsList: React.FC<TenantsListProps> = ({
     return matchesSearch && matchesStatus;
   });
 
+  const handleWipeAllDemo = () => {
+    const msg = isBangla
+      ? 'আপনি কি নিশ্চিত যে সমস্ত ডেমো ডাটা এবং ডেমো এনজিও স্থায়ীভাবে মুছে ফেলতে চান? আপনি নতুন করে শুরু করতে পারবেন।'
+      : 'Are you sure you want to permanently wipe all demo data?';
+    if (window.confirm(msg)) {
+      wipeAllDemoData();
+      onRefresh();
+      alert(isBangla ? 'সমস্ত ডেমো ডাটা স্থায়ীভাবে মুছে ফেলা হয়েছে। এখন আপনি নতুন এনজিও যোগ করতে পারবেন।' : 'All demo data permanently wiped.');
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Action Bar */}
@@ -286,10 +297,21 @@ export const TenantsList: React.FC<TenantsListProps> = ({
           </select>
         </div>
 
-        <Button onClick={() => setIsWizardOpen(true)} className="w-full sm:w-auto h-9 text-xs">
-          <Plus className="w-4 h-4 mr-1.5" />
-          {isBangla ? 'নতুন এনজিও প্রভিশন করুন' : 'Provision New NGO'}
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            onClick={handleWipeAllDemo}
+            className="w-full sm:w-auto h-9 text-xs text-rose-600 border-rose-300 hover:bg-rose-50 hover:text-rose-700"
+          >
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            {isBangla ? 'সকল ডেমো ডাটা মুছুন' : 'Wipe Demo Data'}
+          </Button>
+
+          <Button onClick={() => setIsWizardOpen(true)} className="w-full sm:w-auto h-9 text-xs">
+            <Plus className="w-4 h-4 mr-1.5" />
+            {isBangla ? 'নতুন এনজিও প্রভিশন করুন' : 'Provision New NGO'}
+          </Button>
+        </div>
       </div>
 
       {/* Tenants Table */}
