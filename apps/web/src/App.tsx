@@ -79,10 +79,6 @@ const AppContent: React.FC = () => {
       return 'tenant_deleted';
     }
 
-    // 4. Special direct route for TGPS public website
-    if (firstSegment === 'tgps' || firstSegment === '1gps') {
-      return 'public';
-    }
 
     // 5. Path-based client or custom domain public site
     if (resolution.isPublicLanding && resolution.tenantId && !isTenantDeleted(resolution.tenantId)) {

@@ -119,15 +119,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const cleanClientId = clientId.trim().toUpperCase();
-      const cleanIdentifier = identifier.trim().toLowerCase();
+      const cleanIdentifier = identifier.trim();
+      const cleanPass = (pass || '').trim();
 
-      // 1. Check SuperAdmin credentials
-      if (cleanIdentifier === 'superadmin@ngoerp.xyz' || cleanIdentifier === '01711000000') {
-        loginAsSuperAdminMock();
-        return { success: true };
+      if (!cleanClientId) {
+        return { success: false, error: 'এনজিও আইডি / কোড লিখুন।' };
+      }
+      if (!cleanIdentifier) {
+        return { success: false, error: 'মোবাইল নম্বর অথবা ইমেইল লিখুন।' };
+      }
+      if (!cleanPass) {
+        return { success: false, error: 'পাসওয়ার্ড লিখুন।' };
       }
 
-      // 2. Lookup Tenant by Client ID, Subdomain or Phone/Email lookup
+      // 1. Look up Tenant in registered tenants list
       if (isTenantDeleted(cleanClientId)) {
         return {
           success: false,
@@ -138,111 +143,122 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const rawTenants = localStorage.getItem('ngo_registered_tenants');
       const registeredTenants: any[] = rawTenants ? JSON.parse(rawTenants) : [];
 
-      // A. Try exact match on clientId, subdomain, id
-      let tenant = registeredTenants.find(
+      const tenant = registeredTenants.find(
         (t: any) =>
           !isTenantDeleted(t.id) &&
           !isTenantDeleted(t.clientId) &&
           (t.clientId?.toUpperCase() === cleanClientId ||
-            t.subdomain?.toUpperCase() === cleanClientId ||
-            t.id?.toUpperCase() === cleanClientId)
+            t.id?.toUpperCase() === cleanClientId ||
+            t.subdomain?.toUpperCase() === cleanClientId)
       );
 
-      // B. Fuzzy letter confusion matching (e.g. 1GPS or IGPS instead of TGPS)
-      if (!tenant && cleanClientId.length >= 3) {
-        tenant = registeredTenants.find((t: any) => {
-          if (isTenantDeleted(t.id) || isTenantDeleted(t.clientId)) return false;
-          const codeA = (t.clientId || '').toUpperCase().replace(/^[TI1L]/, '');
-          const codeB = cleanClientId.replace(/^[TI1L]/, '');
-          return codeA && codeB && codeA === codeB;
-        });
-      }
-
-      // C. Reverse lookup by mobile or email if client ID was mistyped or missing
       if (!tenant) {
-        const inputDigits = cleanIdentifier.replace(/\D/g, '');
-        tenant = registeredTenants.find((t: any) => {
-          if (isTenantDeleted(t.id) || isTenantDeleted(t.clientId)) return false;
-          const tEmail = (t.ownerEmail || '').toLowerCase();
-          const tMobile = (t.ownerMobile || '').replace(/\D/g, '');
-          if (tEmail && tEmail === cleanIdentifier) return true;
-          if (tMobile && inputDigits && (tMobile === inputDigits || tMobile.slice(-10) === inputDigits.slice(-10))) return true;
-          return false;
-        });
-      }
-
-      // If still not found, check if TGPS is requested or default
-      if (!tenant && (cleanClientId === 'TGPS' || cleanClientId === '1GPS' || cleanIdentifier === '01811544992' || cleanIdentifier === 'shopthakurgaon@gmail.com')) {
-        tenant = {
-          id: 'tgps',
-          clientId: 'TGPS',
-          subdomain: 'tgps',
-          name: {
-            en: 'Thakurgaon Green Practice Society (TGPS)',
-            bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
-          },
-          ownerEmail: 'shopthakurgaon@gmail.com',
-          ownerMobile: '01811544992',
-          defaultPassword: 'NgoPass2026!',
-          ownerPassword: 'NgoPass2026!'
-        };
-      }
-
-      // If still not found and there is only 1 registered active tenant in the system, use it
-      if (!tenant) {
-        const activeList = registeredTenants.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId));
-        if (activeList.length === 1) {
-          tenant = activeList[0];
-        }
-      }
-
-      // Final fallback to TGPS if empty
-      if (!tenant) {
-        tenant = {
-          id: 'tgps',
-          clientId: 'TGPS',
-          subdomain: 'tgps',
-          name: {
-            en: 'Thakurgaon Green Practice Society (TGPS)',
-            bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
-          },
-          ownerEmail: 'shopthakurgaon@gmail.com',
-          ownerMobile: '01811544992',
-          defaultPassword: 'NgoPass2026!',
-          ownerPassword: 'NgoPass2026!'
-        };
-      }
-
-      const targetTenantId = tenant ? tenant.id : 'tgps';
-      if (isTenantDeleted(targetTenantId)) {
         return {
           success: false,
-          error: 'এই এনজিও অ্যাকাউন্টটি সিস্টেম থেকে মুছে ফেলা হয়েছে।'
+          error: `এনজিও আইডি "${cleanClientId}" সঠিক নয় বা সিস্টেমে বিদ্যমান নেই!`
         };
       }
 
-      // 3. Check registered staff in this tenant
-      let staffList: any[] = [];
-      try {
-        staffList = JSON.parse(localStorage.getItem(`ngo_users_${targetTenantId}`) || '[]');
-      } catch {}
+      if (tenant.status === 'suspended') {
+        return {
+          success: false,
+          error: 'এই এনজিও অ্যাকাউন্টটি বর্তমানে সাময়িকভাবে স্থগিত (Suspended) রয়েছে।'
+        };
+      }
 
       const inputDigits = cleanIdentifier.replace(/\D/g, '');
+      const inputLower = cleanIdentifier.toLowerCase();
+
+      // 2. Check if logging in as Tenant Owner / Director
+      const ownerMobileDigits = (tenant.ownerMobile || '').replace(/\D/g, '');
+      const ownerEmail = (tenant.ownerEmail || '').trim().toLowerCase();
+
+      const isOwnerMobile = ownerMobileDigits && inputDigits && (ownerMobileDigits === inputDigits || ownerMobileDigits.slice(-10) === inputDigits.slice(-10));
+      const isOwnerEmail = ownerEmail && inputLower === ownerEmail;
+      const isOwnerId = cleanIdentifier.toUpperCase() === tenant.clientId?.toUpperCase() || inputLower === tenant.id?.toLowerCase();
+
+      if (isOwnerMobile || isOwnerEmail || isOwnerId) {
+        const validOwnerPass = [
+          tenant.ownerPassword,
+          tenant.defaultPassword,
+          'NgoPass2026!'
+        ].filter(Boolean);
+
+        let customPass: string | null = null;
+        try {
+          const staffList = JSON.parse(localStorage.getItem(`ngo_users_${tenant.id}`) || '[]');
+          const staffOwner = staffList.find((u: any) => u.roleId === 'owner');
+          if (staffOwner?.password) customPass = staffOwner.password;
+        } catch {}
+
+        const isPasswordCorrect = validOwnerPass.includes(cleanPass) || (customPass && customPass === cleanPass);
+        if (!isPasswordCorrect) {
+          return {
+            success: false,
+            error: 'পাসওয়ার্ড সঠিক নয়! সঠিক পাসওয়ার্ড প্রদান করুন।'
+          };
+        }
+
+        // Success Owner Login
+        const ownerUser: UserProfile = {
+          uid: `owner_${tenant.id}`,
+          tenantId: tenant.id,
+          email: tenant.ownerEmail || `${tenant.id}@ngoerp.xyz`,
+          mobile: tenant.ownerMobile || cleanIdentifier,
+          displayName: {
+            en: tenant.name?.en ? `${tenant.name.en} (Executive Director)` : 'Executive Director',
+            bn: tenant.name?.bn ? `${tenant.name.bn} (নির্বাহী পরিচালক)` : 'নির্বাহী পরিচালক'
+          },
+          roleId: 'owner',
+          branchId: 'all',
+          status: 'active',
+          createdAt: tenant.createdAt || Date.now()
+        };
+
+        setCurrentUser(ownerUser);
+        setIsSuperAdmin(false);
+        setRole('owner');
+        localStorage.setItem('ngo_demo_user', JSON.stringify(ownerUser));
+        localStorage.setItem('ngo_is_superadmin', 'false');
+        localStorage.setItem('ngo_user_role', 'owner');
+        localStorage.setItem('ngo_active_tenant_v1', tenant.id);
+
+        if (cleanPass === 'NgoPass2026!' || cleanPass === tenant.defaultPassword) {
+          setMustChangePassword(true);
+          localStorage.setItem('ngo_must_change_pass', 'true');
+        }
+
+        return { success: true };
+      }
+
+      // 3. Check if logging in as Tenant Staff (Manager, Field Officer, Accountant)
+      let staffList: any[] = [];
+      try {
+        staffList = JSON.parse(localStorage.getItem(`ngo_users_${tenant.id}`) || '[]');
+      } catch {}
+
       const matchedStaff = Array.isArray(staffList)
         ? staffList.find((u: any) => {
             const uEmail = (u.email || '').toLowerCase();
-            const uMobile = (u.mobile || '').replace(/\D/g, '');
-            if (uEmail && uEmail === cleanIdentifier) return true;
-            if (uMobile && inputDigits && (uMobile === inputDigits || uMobile.slice(-10) === inputDigits.slice(-10))) return true;
+            const uMobileDigits = (u.mobile || '').replace(/\D/g, '');
+            if (uEmail && uEmail === inputLower) return true;
+            if (uMobileDigits && inputDigits && (uMobileDigits === inputDigits || uMobileDigits.slice(-10) === inputDigits.slice(-10))) return true;
             return false;
           })
         : null;
 
       if (matchedStaff) {
-        // Staff found
+        const isStaffPassCorrect = cleanPass === matchedStaff.password || cleanPass === matchedStaff.defaultPassword;
+        if (!isStaffPassCorrect) {
+          return {
+            success: false,
+            error: 'পাসওয়ার্ড সঠিক নয়! সঠিক পাসওয়ার্ড প্রদান করুন।'
+          };
+        }
+
         const userProfile: UserProfile = {
           ...matchedStaff,
-          tenantId: targetTenantId
+          tenantId: tenant.id
         };
         setCurrentUser(userProfile);
         setIsSuperAdmin(false);
@@ -250,9 +266,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('ngo_demo_user', JSON.stringify(userProfile));
         localStorage.setItem('ngo_is_superadmin', 'false');
         localStorage.setItem('ngo_user_role', matchedStaff.roleId);
-        localStorage.setItem('ngo_active_tenant_v1', targetTenantId);
+        localStorage.setItem('ngo_active_tenant_v1', tenant.id);
 
-        // Check if default password was used
         if (pass === 'NgoPass2026!' || pass === matchedStaff.defaultPassword) {
           setMustChangePassword(true);
           localStorage.setItem('ngo_must_change_pass', 'true');
@@ -261,78 +276,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       }
 
-      // 4. Check if tenant owner logging in
-      if (tenant) {
-        const ownerEmail = (tenant.ownerEmail || '').trim().toLowerCase();
-        const ownerMobileDigits = (tenant.ownerMobile || '').replace(/\D/g, '');
-
-        const isEmailMatch = ownerEmail && cleanIdentifier === ownerEmail;
-        const isMobileMatch =
-          ownerMobileDigits &&
-          inputDigits &&
-          (ownerMobileDigits === inputDigits ||
-            ownerMobileDigits.slice(-10) === inputDigits.slice(-10) ||
-            ownerMobileDigits.slice(-8) === inputDigits.slice(-8));
-        const isDirectorMatch =
-          cleanIdentifier.includes('director') ||
-          cleanIdentifier === 'owner' ||
-          cleanIdentifier === 'admin' ||
-          cleanIdentifier === (tenant.clientId || '').toLowerCase() ||
-          cleanIdentifier === (tenant.clientId || '').toUpperCase() ||
-          cleanIdentifier === 'tgps' ||
-          cleanIdentifier === '1gps';
-
-        if (isEmailMatch || isMobileMatch || isDirectorMatch || !cleanIdentifier) {
-          // Check password
-          const validPasswords = [
-            tenant.defaultPassword,
-            tenant.ownerPassword,
-            'NgoPass2026!',
-            'admin123',
-            '123456'
-          ].filter(Boolean);
-
-          const staffOwner = Array.isArray(staffList)
-            ? staffList.find((u: any) => u.roleId === 'owner' || (u.email && u.email.toLowerCase() === ownerEmail))
-            : null;
-          if (staffOwner?.password) validPasswords.push(staffOwner.password);
-          if (staffOwner?.defaultPassword) validPasswords.push(staffOwner.defaultPassword);
-
-          if (pass && !validPasswords.includes(pass)) {
-            return {
-              success: false,
-              error: 'পাসওয়ার্ড সঠিক নয়! সঠিক পাসওয়ার্ড দিয়ে পুনরায় চেষ্টা করুন।'
-            };
-          }
-
-          const ownerUser: UserProfile = {
-            uid: `owner_${tenant.id}`,
-            tenantId: tenant.id,
-            email: tenant.ownerEmail,
-            mobile: tenant.ownerMobile || (staffOwner ? staffOwner.mobile : '01712-345678'),
-            displayName: {
-              en: tenant.name?.en || 'Executive Director',
-              bn: `${tenant.name?.bn || 'এনজিও'} (নির্বাহী পরিচালক)`
-            },
-            roleId: 'owner',
-            branchId: 'all',
-            status: 'active',
-            createdAt: tenant.createdAt
-          };
-          setCurrentUser(ownerUser);
-          setIsSuperAdmin(false);
-          setRole('owner');
-          localStorage.setItem('ngo_demo_user', JSON.stringify(ownerUser));
-          localStorage.setItem('ngo_is_superadmin', 'false');
-          localStorage.setItem('ngo_user_role', 'owner');
-          localStorage.setItem('ngo_active_tenant_v1', tenant.id);
-          return { success: true };
-        }
-      }
-
+      // Neither Owner nor Staff matched this identifier
       return {
         success: false,
-        error: 'ভুল এনজিও আইডি, মোবাইল নম্বর বা পাসওয়ার্ড প্রদান করা হয়েছে।'
+        error: `মোবাইল নম্বর বা ইমেইল "${cleanIdentifier}" এই এনজিওতে নিবন্ধিত নয়!`
       };
     } catch (err: any) {
       console.error('Login error:', err);

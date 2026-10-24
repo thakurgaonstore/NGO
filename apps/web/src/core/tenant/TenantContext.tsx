@@ -117,41 +117,6 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             phone: localMatch.ownerMobile || '01712-345678'
           });
         }
-      } else if (tenantId === 'tgps' || tenantId?.toUpperCase() === 'TGPS' || tenantId === '1gps') {
-        const tgpsTenant: Tenant = {
-          id: 'tgps',
-          clientId: 'TGPS',
-          subdomain: 'tgps',
-          domain: 'tgps.ngoerp.xyz',
-          name: {
-            en: 'Thakurgaon Green Practice Society (TGPS)',
-            bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
-          },
-          planId: 'enterprise',
-          status: 'active',
-          deploymentMode: 'MODE_A',
-          enabledModules: ['dashboard', 'organization', 'members', 'projects', 'microcredit', 'donors_grants', 'accounts', 'field_ops', 'hr_payroll', 'inventory', 'website', 'reports', 'settings'],
-          quotas: {
-            usersCount: 15,
-            branchesCount: 4,
-            estimatedDailyReads: 1250,
-            estimatedDailyWrites: 180,
-            smsCreditsRemaining: 4500
-          },
-          ownerEmail: 'shopthakurgaon@gmail.com',
-          ownerMobile: '01811544992',
-          createdAt: Date.now() - 30 * 86400000,
-          updatedAt: Date.now(),
-          expiresAt: Date.now() + 335 * 86400000
-        };
-        setTenant(tgpsTenant);
-        setSettings({
-          ...DEFAULT_FALLBACK_SETTINGS,
-          orgName: tgpsTenant.name,
-          email: tgpsTenant.ownerEmail,
-          phone: tgpsTenant.ownerMobile || '01811544992',
-          primaryColor: '#059669'
-        });
       } else {
         // Neither in cloud nor in registered list -> truly not found or deleted
         setTenant(null);

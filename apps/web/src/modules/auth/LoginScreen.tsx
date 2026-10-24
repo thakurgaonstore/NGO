@@ -60,28 +60,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Available registered tenants for quick fill
-  const availableTenants = useMemo(() => {
-    try {
-      const raw = localStorage.getItem('ngo_registered_tenants');
-      const list = raw ? JSON.parse(raw) : [];
-      const active = Array.isArray(list) ? list.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId)) : [];
-      if (active.length > 0) return active;
-    } catch {}
-    return [
-      {
-        id: 'tgps',
-        clientId: 'TGPS',
-        name: {
-          bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)',
-          en: 'Thakurgaon Green Practice Society (TGPS)'
-        },
-        ownerMobile: '01811544992',
-        defaultPassword: 'NgoPass2026!'
-      }
-    ];
-  }, []);
-
   // Password Change Modal State
   const [isChangePassOpen, setIsChangePassOpen] = useState<boolean>(false);
   const [newPassword, setNewPassword] = useState<string>('');
@@ -108,13 +86,32 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
     setError(null);
     try {
       if (activeTab === 'superadmin') {
-        if (identifier.includes('superadmin') || identifier === '01711000000' || password === 'MahinAdmin2026!' || password === 'NgoPass2026!') {
+        const cleanId = identifier.trim().toLowerCase();
+        const cleanPass = password.trim();
+
+        const savedPass = localStorage.getItem('ngo_superadmin_password') || 'MahinAdmin2026!';
+        const isIdMatch =
+          cleanId === 'superadmin@ngoerp.xyz' ||
+          cleanId === '01711000000' ||
+          cleanId === 'admin@ngoerp.xyz';
+        const isPassMatch = cleanPass === savedPass;
+
+        if (isIdMatch && isPassMatch) {
           loginAsSuperAdminMock();
           onLoginSuccess(true);
           return;
+        } else {
+          setError(
+            !isIdMatch
+              ? (isBangla
+                  ? 'ভুল সুপার এডমিন ইমেইল বা মোবাইল প্রদান করা হয়েছে!'
+                  : 'Invalid Super Admin email or mobile!')
+              : (isBangla
+                  ? 'ভুল সুপার এডমিন পাসওয়ার্ড প্রদান করা হয়েছে!'
+                  : 'Invalid Super Admin password!')
+          );
+          return;
         }
-        loginAsSuperAdminMock();
-        onLoginSuccess(true);
       } else {
         const targetId = hasKnownDomain ? (tenant?.clientId || clientId) : clientId;
         const result = await signInWithStaffCredentials(targetId, identifier, password);
@@ -128,32 +125,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
       setError(err.message || 'Login failed');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleQuickDemoLogin = (demoRole: UserRole, isSA: boolean = false) => {
-    if (isSA) {
-      loginAsSuperAdminMock();
-      onLoginSuccess(true);
-    } else {
-      let targetTenantId = 'tgps';
-      try {
-        const raw = localStorage.getItem('ngo_registered_tenants');
-        const list = raw ? JSON.parse(raw) : [];
-        const match = list.find(
-          (t: any) =>
-            !isTenantDeleted(t.id) &&
-            !isTenantDeleted(t.clientId) &&
-            clientId &&
-            (t.clientId?.toUpperCase() === clientId.trim().toUpperCase() ||
-              t.id?.toLowerCase() === clientId.trim().toLowerCase() ||
-              t.subdomain?.toLowerCase() === clientId.trim().toLowerCase())
-        );
-        if (match) targetTenantId = match.id;
-      } catch {}
-
-      loginAsTenantMock(demoRole, targetTenantId);
-      onLoginSuccess(false);
     }
   };
 
@@ -208,6 +179,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                   type="button"
                   onClick={() => {
                     setActiveTab('client');
+                    setError(null);
+                    setIdentifier('');
+                    setPassword('');
                     window.history.replaceState(null, '', '/cerp');
                   }}
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
@@ -216,13 +190,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {isBangla ? 'এনজিও কর্মী / গ্রাহক লগইন (/cerp)' : 'Client ERP Portal (/cerp)'}
+                  {isBangla ? 'এনজিও কর্মী / পরিচালক লগইন' : 'Client ERP Portal'}
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     setActiveTab('superadmin');
-                    setIdentifier('superadmin@ngoerp.xyz');
+                    setError(null);
+                    setIdentifier('');
+                    setPassword('');
                     window.history.replaceState(null, '', '/mahinerp');
                   }}
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
@@ -231,7 +207,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
-                  {isBangla ? 'সুপার এডমিন (/mahinerp)' : 'Super Admin (/mahinerp)'}
+                  {isBangla ? 'সুপার এডমিন পোর্টাল' : 'Super Admin Portal'}
                 </button>
               </div>
             )}
@@ -245,8 +221,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
             </CardTitle>
             <CardDescription className="text-xs">
               {activeTab === 'superadmin'
-                ? (isBangla ? 'সেন্ট্রাল টেন্যান্ট ও সিস্টেম কন্ট্রোল' : 'Central Multi-Tenant Platform Control')
-                : (isBangla ? 'আপনার এনজিও আইডি, মোবাইল ও পাসওয়ার্ড দিন' : 'Enter your NGO ID, Mobile & Password')}
+                ? (isBangla ? 'সুপার এডমিন ইমেইল ও পাসওয়ার্ড প্রদান করুন' : 'Enter Super Admin Email & Password')
+                : (isBangla ? 'আপনার এনজিও কোড, মোবাইল ও পাসওয়ার্ড দিন' : 'Enter your NGO ID, Mobile & Password')}
             </CardDescription>
           </CardHeader>
 
@@ -281,40 +257,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                       </span>
                     </div>
                   ) : (
-                    <div className="space-y-1.5 mt-1">
-                      <div className="relative">
-                        <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          value={clientId}
-                          onChange={(e) => setClientId(e.target.value.toUpperCase())}
-                          placeholder="e.g. TGPS"
-                          className="pl-9 font-mono uppercase"
-                          required
-                        />
-                      </div>
-                      {availableTenants.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                          <span className="text-[10px] text-muted-foreground font-medium">
-                            {isBangla ? 'ক্লিক করে পূরণ করুন:' : 'Quick Select:'}
-                          </span>
-                          {availableTenants.map((t: any) => (
-                            <button
-                              key={t.id || t.clientId}
-                              type="button"
-                              onClick={() => {
-                                setClientId(t.clientId || t.id);
-                                if (t.ownerMobile) setIdentifier(t.ownerMobile);
-                                setPassword(t.defaultPassword || t.ownerPassword || 'NgoPass2026!');
-                              }}
-                              className="px-2 py-0.5 text-[10.5px] rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/90 font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1 shadow-2xs"
-                              title="ক্লিক করলে এনজিও কোড, মোবাইল ও পাসওয়ার্ড পূরণ হবে"
-                            >
-                              <span className="font-mono font-bold text-emerald-700">{t.clientId}</span>
-                              <span className="max-w-[140px] truncate">({t.name?.bn || t.name?.en})</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    <div className="relative mt-1">
+                      <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        value={clientId}
+                        onChange={(e) => setClientId(e.target.value.toUpperCase())}
+                        placeholder="e.g. TGPS"
+                        className="pl-9 font-mono uppercase"
+                        required
+                      />
                     </div>
                   )}
                 </div>
@@ -324,15 +275,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
               <div>
                 <label className="text-xs font-semibold text-muted-foreground">
                   {activeTab === 'superadmin'
-                    ? (isBangla ? 'সুপার এডমিন ইমেইল / মোবাইল' : 'Super Admin Email / Mobile')
-                    : (isBangla ? 'মোবাইল নম্বর অথবা ইমেইল *' : 'Staff Mobile Number or Email *')}
+                    ? (isBangla ? 'সুপার এডমিন ইমেইল / মোবাইল *' : 'Super Admin Email / Mobile *')
+                    : (isBangla ? 'মোবাইল নম্বর অথবা ইমেইল *' : 'Staff / Director Mobile or Email *')}
                 </label>
                 <div className="relative mt-1">
                   <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder={activeTab === 'superadmin' ? 'superadmin@ngoerp.xyz' : '01712-345678 or name@ngo.org'}
+                    placeholder={activeTab === 'superadmin' ? 'superadmin@ngoerp.xyz' : '01811-544992 or email'}
                     className="pl-9 font-mono"
                     required
                   />
@@ -345,9 +296,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                   <label className="text-xs font-semibold text-muted-foreground">
                     {isBangla ? 'পাসওয়ার্ড (Password) *' : 'Password *'}
                   </label>
-                  <span className="text-[11px] text-muted-foreground">
-                    {isBangla ? 'ডিফল্ট: NgoPass2026!' : 'Default: NgoPass2026!'}
-                  </span>
                 </div>
                 <div className="relative mt-1">
                   <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -355,6 +303,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
                     className="pl-9 pr-9 font-mono"
                     required
                   />
@@ -372,58 +321,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                 {isBangla ? 'লগইন করুন' : 'Sign In'}
               </Button>
             </form>
-
-            {/* Quick Demo One-Click Sign In Bar */}
-            <div className="mt-5 pt-4 border-t border-border">
-              <div className="text-[11px] font-semibold text-muted-foreground flex items-center justify-between mb-2">
-                <span className="flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  {isBangla ? 'এক ক্লিকে ডেমো লগইন:' : 'Quick One-Click Test Login:'}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleQuickDemoLogin('owner', true)}
-                  className="h-8 text-[11px] justify-start text-primary font-bold"
-                >
-                  <Shield className="w-3.5 h-3.5 mr-1" />
-                  Super Admin
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleQuickDemoLogin('field_officer', false)}
-                  className="h-8 text-[11px] justify-start text-amber-600 font-bold"
-                >
-                  <UserCheck className="w-3.5 h-3.5 mr-1" />
-                  মাঠকর্মী (Field PWA)
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleQuickDemoLogin('owner', false)}
-                  className="h-8 text-[11px] justify-start text-emerald-600 font-bold"
-                >
-                  <UserCheck className="w-3.5 h-3.5 mr-1" />
-                  নির্বাহী পরিচালক (Owner)
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleQuickDemoLogin('manager', false)}
-                  className="h-8 text-[11px] justify-start text-sky-600 font-bold"
-                >
-                  <UserCheck className="w-3.5 h-3.5 mr-1" />
-                  ম্যানেজার (Manager)
-                </Button>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>

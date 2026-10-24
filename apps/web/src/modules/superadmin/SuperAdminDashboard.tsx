@@ -3,7 +3,7 @@ import { useI18n } from '../../core/i18n/I18nContext';
 import { useTenant } from '../../core/tenant/TenantContext';
 import { useAuth } from '../../core/auth/AuthContext';
 import { Tenant, toBanglaDigits, formatCurrency } from '@ngo-erp/shared';
-import { isTenantDeleted } from '../../core/tenant/tenantCleanupService';
+import { isTenantDeleted, wipeAllDemoData } from '../../core/tenant/tenantCleanupService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -16,39 +16,11 @@ import {
   AlertTriangle,
   Server,
   ShieldCheck,
-  Zap
+  Zap,
+  Trash2
 } from 'lucide-react';
 
-const INITIAL_DEMO_TENANTS: Tenant[] = [
-  {
-    id: 'tgps',
-    clientId: 'TGPS',
-    subdomain: 'tgps',
-    domain: 'tgps.ngoerp.xyz',
-    name: {
-      en: 'Thakurgaon Green Practice Society (TGPS)',
-      bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
-    },
-    planId: 'enterprise',
-    status: 'active',
-    deploymentMode: 'MODE_A',
-    enabledModules: ['dashboard', 'organization', 'members', 'projects', 'microcredit', 'donors_grants', 'accounts', 'field_ops', 'hr_payroll', 'inventory', 'website', 'reports', 'settings'],
-    quotas: {
-      usersCount: 15,
-      branchesCount: 4,
-      estimatedDailyReads: 1250,
-      estimatedDailyWrites: 180,
-      smsCreditsRemaining: 4500
-    },
-    ownerEmail: 'shopthakurgaon@gmail.com',
-    ownerMobile: '01811544992',
-    defaultPassword: 'NgoPass2026!',
-    ownerPassword: 'NgoPass2026!',
-    createdAt: Date.now() - 30 * 86400000,
-    updatedAt: Date.now(),
-    expiresAt: Date.now() + 335 * 86400000
-  }
-];
+const INITIAL_DEMO_TENANTS: Tenant[] = [];
 
 export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: string) => void }> = ({
   onNavigateToTenantApp
@@ -71,12 +43,6 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
         console.warn('Failed to parse saved tenants:', e);
       }
     }
-
-    const hasTgps = list.some((t) => t.id === 'tgps' || t.clientId?.toUpperCase() === 'TGPS');
-    if (!hasTgps) {
-      list = [...INITIAL_DEMO_TENANTS, ...list];
-    }
-    localStorage.setItem('ngo_registered_tenants', JSON.stringify(list));
     return list;
   });
 
@@ -93,11 +59,18 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
         console.warn('Failed to refresh tenants:', e);
       }
     }
-    const hasTgps = list.some((t) => t.id === 'tgps' || t.clientId?.toUpperCase() === 'TGPS');
-    if (!hasTgps) {
-      list = [...INITIAL_DEMO_TENANTS, ...list];
-    }
     setTenants(list);
+  };
+
+  const handleWipeAllDemo = () => {
+    const msg = isBangla
+      ? 'আপনি কি নিশ্চিত যে সকল ডেমো ডাটা এবং ডেমো এনজিও স্থায়ীভাবে মুছে ফেলতে চান? নতুন তৈরি করা এনজিও ব্যতীত অন্য সব ডেমো তথ্য মুছে যাবে।'
+      : 'Are you sure you want to permanently wipe all demo tenant data?';
+    if (window.confirm(msg)) {
+      wipeAllDemoData();
+      refreshTenants();
+      alert(isBangla ? 'সকল ডেমো ডাটা সফলভাবে মুছে ফেলা হয়েছে।' : 'All demo data has been wiped.');
+    }
   };
 
   useEffect(() => {
@@ -238,9 +211,20 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
               <Users className="w-4 h-4 text-primary" />
               <span>{isBangla ? 'এনজিও টেন্যান্টদের তালিকা' : 'NGO Tenant Directory'}</span>
             </CardTitle>
-            <Badge variant="outline" className="text-xs">
-              {isBangla ? `মোট ${toBanglaDigits(tenants.length)} টি এনজিও` : `${tenants.length} Tenants`}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleWipeAllDemo}
+                className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 flex items-center gap-1.5 h-8"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isBangla ? 'সকল ডেমো ডাটা মুছুন' : 'Wipe All Demo Data'}</span>
+              </Button>
+              <Badge variant="outline" className="text-xs">
+                {isBangla ? `মোট ${toBanglaDigits(tenants.length)} টি এনজিও` : `${tenants.length} Tenants`}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pt-4">

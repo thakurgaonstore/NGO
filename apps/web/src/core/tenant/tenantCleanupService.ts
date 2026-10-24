@@ -66,11 +66,7 @@ export function getDeletedTenantIds(): string[] {
   try {
     const raw = localStorage.getItem('ngo_deleted_tenant_ids');
     const stored: string[] = raw ? JSON.parse(raw) : [];
-    // TGPS is the real active NGO — NEVER allow it to be marked as deleted
-    const valid = stored
-      .map((s) => s.trim().toLowerCase())
-      .filter((s) => s !== 'tgps' && s !== '1gps' && s !== 'demo-tgps');
-    return Array.from(new Set([...PERMANENT_GLOBAL_BLACKLIST, ...valid]));
+    return Array.from(new Set([...PERMANENT_GLOBAL_BLACKLIST, ...stored.map((s) => s.trim().toLowerCase())]));
   } catch {
     return [...PERMANENT_GLOBAL_BLACKLIST];
   }
@@ -82,14 +78,9 @@ export function getDeletedTenantIds(): string[] {
 export function isTenantDeleted(idOrSlug?: string | null): boolean {
   if (!idOrSlug) return false;
   const clean = idOrSlug.trim().toLowerCase().replace(/^www\./, '');
-  // TGPS is the active NGO — NEVER treat as deleted!
-  if (clean === 'tgps' || clean === '1gps' || clean === 'demo-tgps') {
-    return false;
-  }
   const deleted = getDeletedTenantIds();
   return deleted.some((d) => {
     const cleanD = d.toLowerCase().replace(/^www\./, '');
-    if (cleanD === 'tgps' || cleanD === '1gps') return false;
     return cleanD === clean || clean === `demo-${cleanD}` || cleanD === `demo-${clean}`;
   });
 }
@@ -100,10 +91,7 @@ export function isTenantDeleted(idOrSlug?: string | null): boolean {
 export function markTenantAsDeleted(identifiers: string[]) {
   try {
     const existing = getDeletedTenantIds();
-    // Guard against accidentally blacklisting TGPS
-    const safeIdentifiers = identifiers
-      .map((s) => s.trim().toLowerCase())
-      .filter((s) => s !== 'tgps' && s !== '1gps' && s !== 'demo-tgps');
+    const safeIdentifiers = identifiers.map((s) => s.trim().toLowerCase());
 
     const updated = Array.from(new Set([...existing, ...safeIdentifiers]));
     localStorage.setItem('ngo_deleted_tenant_ids', JSON.stringify(updated));
@@ -127,13 +115,58 @@ export function markTenantAsDeleted(identifiers: string[]) {
 }
 
 /**
+ * Permanently wipes all demo tenants and resets the platform to a completely clean slate.
+ * SuperAdmin login credentials and settings are preserved.
+ */
+export function wipeAllDemoData(): void {
+  try {
+    // 1. Wipe registered tenants list
+    localStorage.setItem('ngo_registered_tenants', JSON.stringify([]));
+
+    // 2. Clear tenant directory cache
+    localStorage.setItem('ngo_tenant_directory_cache', JSON.stringify({}));
+
+    // 3. Clear active tenant / session keys
+    localStorage.removeItem('ngo_active_tenant_v1');
+    localStorage.removeItem('ngo_demo_user');
+    sessionStorage.removeItem('ngo_impersonating_tenant_id');
+    localStorage.removeItem('ngo_must_change_pass');
+
+    // 4. Clean up any tenant-specific localStorage keys
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('ngo_website_config_') ||
+        key.startsWith('ngo_settings_') ||
+        key.startsWith('ngo_tenant_') ||
+        key.startsWith('ngo_users_')
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+    // 5. Notify listeners across tabs
+    window.dispatchEvent(new CustomEvent('ngo_tenant_deleted', { detail: { tenantId: 'all' } }));
+    try {
+      const bc = new BroadcastChannel('ngo_tenant_channel');
+      bc.postMessage({ type: 'TENANT_DELETED', tenantId: 'all' });
+      bc.close();
+    } catch {}
+  } catch (err) {
+    console.error('Failed to wipe demo data:', err);
+  }
+}
+
+/**
  * Automatically purges any lingering traces of blacklisted or deleted tenants from localStorage & sessionStorage.
  */
 export function purgeDeletedTenantTraces() {
   try {
     const deletedList = getDeletedTenantIds();
 
-    // 1. Purge registered list and ALWAYS ensure TGPS is preserved
+    // 1. Purge registered list
     const rawSaved = localStorage.getItem('ngo_registered_tenants');
     let list: any[] = [];
     if (rawSaved) {
@@ -150,10 +183,6 @@ export function purgeDeletedTenantTraces() {
       } catch {}
     }
 
-    const hasTgps = list.some((t: any) => t.id === 'tgps' || t.clientId?.toUpperCase() === 'TGPS');
-    if (!hasTgps) {
-      list.unshift(TGPS_DEFAULT_RECORD);
-    }
     localStorage.setItem('ngo_registered_tenants', JSON.stringify(list));
 
     // 2. Purge active tenant if deleted

@@ -19,18 +19,7 @@ export const DEFAULT_DEMO_TENANTS: Array<{
   subdomain: string;
   domain?: string;
   name: { en: string; bn: string };
-}> = [
-  {
-    id: 'tgps',
-    clientId: 'TGPS',
-    subdomain: 'tgps',
-    domain: 'tgps.ngoerp.xyz',
-    name: {
-      en: 'Thakurgaon Green Practice Society (TGPS)',
-      bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
-    }
-  }
-];
+}> = [];
 
 export class TenantResolver {
   private static CACHE_KEY = 'ngo_active_tenant_v1';
