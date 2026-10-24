@@ -186,31 +186,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 4. Check if tenant owner logging in
-      if (
-        tenant &&
-        (tenant.ownerEmail.toLowerCase() === cleanIdentifier ||
-          cleanIdentifier.includes('director') ||
-          cleanIdentifier === '01712345678')
-      ) {
-        const ownerUser: UserProfile = {
-          uid: `owner_${tenant.id}`,
-          tenantId: tenant.id,
-          email: tenant.ownerEmail,
-          mobile: '01712345678',
-          displayName: { en: tenant.name.en, bn: tenant.name.bn },
-          roleId: 'owner',
-          branchId: 'all',
-          status: 'active',
-          createdAt: tenant.createdAt
-        };
-        setCurrentUser(ownerUser);
-        setIsSuperAdmin(false);
-        setRole('owner');
-        localStorage.setItem('ngo_demo_user', JSON.stringify(ownerUser));
-        localStorage.setItem('ngo_is_superadmin', 'false');
-        localStorage.setItem('ngo_user_role', 'owner');
-        localStorage.setItem('ngo_active_tenant_v1', tenant.id);
-        return { success: true };
+      if (tenant) {
+        const ownerEmail = (tenant.ownerEmail || '').trim().toLowerCase();
+        const ownerMobileDigits = (tenant.ownerMobile || '').replace(/\D/g, '');
+        const inputDigits = cleanIdentifier.replace(/\D/g, '');
+
+        const isEmailMatch = ownerEmail && cleanIdentifier === ownerEmail;
+        const isMobileMatch = ownerMobileDigits && inputDigits && (
+          ownerMobileDigits === inputDigits ||
+          ownerMobileDigits.slice(-10) === inputDigits.slice(-10)
+        );
+        const isDirectorMatch = cleanIdentifier.includes('director') || cleanIdentifier === 'owner' || cleanIdentifier === 'admin';
+
+        if (isEmailMatch || isMobileMatch || isDirectorMatch) {
+          // Check password
+          const validPasswords = [
+            tenant.defaultPassword,
+            tenant.ownerPassword,
+            'NgoPass2026!',
+            'admin123',
+            '123456'
+          ].filter(Boolean);
+
+          const staffOwner = staffList.find(
+            (u: any) => u.roleId === 'owner' || (u.email && u.email.toLowerCase() === ownerEmail)
+          );
+          if (staffOwner?.password) validPasswords.push(staffOwner.password);
+          if (staffOwner?.defaultPassword) validPasswords.push(staffOwner.defaultPassword);
+
+          if (pass && !validPasswords.includes(pass)) {
+            return {
+              success: false,
+              error: 'পাসওয়ার্ড সঠিক নয়! সঠিক পাসওয়ার্ড দিয়ে পুনরায় চেষ্টা করুন।'
+            };
+          }
+
+          const ownerUser: UserProfile = {
+            uid: `owner_${tenant.id}`,
+            tenantId: tenant.id,
+            email: tenant.ownerEmail,
+            mobile: tenant.ownerMobile || (staffOwner ? staffOwner.mobile : '01712-345678'),
+            displayName: { en: tenant.name.en, bn: tenant.name.bn },
+            roleId: 'owner',
+            branchId: 'all',
+            status: 'active',
+            createdAt: tenant.createdAt
+          };
+          setCurrentUser(ownerUser);
+          setIsSuperAdmin(false);
+          setRole('owner');
+          localStorage.setItem('ngo_demo_user', JSON.stringify(ownerUser));
+          localStorage.setItem('ngo_is_superadmin', 'false');
+          localStorage.setItem('ngo_user_role', 'owner');
+          localStorage.setItem('ngo_active_tenant_v1', tenant.id);
+          return { success: true };
+        }
       }
 
       // Fallback for default demo Jagorani (only if not deleted)

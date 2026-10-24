@@ -173,6 +173,9 @@ export const TenantProvisioningWizard: React.FC<ProvisioningWizardProps> = ({ on
           smsCreditsRemaining: selectedPlanId === 'enterprise' ? 5000 : selectedPlanId === 'growth' ? 1000 : 200
         },
         ownerEmail,
+        ownerMobile,
+        defaultPassword: ownerPassword,
+        ownerPassword,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         expiresAt: Date.now() + 365 * 86400000 // 1 year
@@ -192,7 +195,36 @@ export const TenantProvisioningWizard: React.FC<ProvisioningWizardProps> = ({ on
       }
       localStorage.setItem('ngo_tenant_directory_cache', JSON.stringify(directory));
 
-      // Auto-provision initial settings, default chart of accounts, and roles
+      // Auto-provision initial settings, owner user, default chart of accounts, and roles
+      localStorage.setItem(`ngo_settings_${tenantId}`, JSON.stringify({
+        orgName: { en: nameEn, bn: nameBn },
+        regNumber: 'NGO-REG-2026',
+        email: ownerEmail,
+        phone: ownerMobile,
+        address: { en: 'Head Office', bn: 'প্রধান কার্যালয়' },
+        primaryColor: '#0d9488'
+      }));
+      localStorage.setItem(`ngo_tenant_${tenantId}_settings`, JSON.stringify({
+        orgName: { en: nameEn, bn: nameBn },
+        regNumber: 'NGO-REG-2026',
+        email: ownerEmail,
+        phone: ownerMobile,
+        address: { en: 'Head Office', bn: 'প্রধান কার্যালয়' },
+        primaryColor: '#0d9488'
+      }));
+      localStorage.setItem(`ngo_users_${tenantId}`, JSON.stringify([{
+        uid: `owner_${tenantId}`,
+        tenantId,
+        email: ownerEmail,
+        mobile: ownerMobile,
+        displayName: { en: ownerNameEn, bn: ownerNameBn },
+        roleId: 'owner',
+        branchId: 'all',
+        status: 'active',
+        password: ownerPassword,
+        defaultPassword: ownerPassword,
+        createdAt: Date.now()
+      }]));
       localStorage.setItem(`ngo_tenant_${tenantId}_coa`, JSON.stringify(DEFAULT_NGO_CHART_OF_ACCOUNTS));
       localStorage.setItem(`ngo_tenant_${tenantId}_roles`, JSON.stringify(DEFAULT_TENANT_ROLES));
 

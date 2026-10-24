@@ -98,8 +98,16 @@ export const TenantsList: React.FC<TenantsListProps> = ({
     setEditStatus(t.status);
     setEditMode(t.deploymentMode);
     setEditOwnerEmail(t.ownerEmail);
-    setEditOwnerMobile('01712-345678');
-    setEditDefaultPass('NgoPass2026!');
+    // Read from tenant or saved settings
+    let savedMobile = t.ownerMobile;
+    if (!savedMobile) {
+      try {
+        const s = JSON.parse(localStorage.getItem(`ngo_settings_${t.id}`) || '{}');
+        savedMobile = s.phone;
+      } catch {}
+    }
+    setEditOwnerMobile(savedMobile || '01712-345678');
+    setEditDefaultPass(t.defaultPassword || t.ownerPassword || 'NgoPass2026!');
     setEditFirebaseJson(
       t.firebaseConfig
         ? JSON.stringify(t.firebaseConfig, null, 2)
@@ -138,22 +146,101 @@ export const TenantsList: React.FC<TenantsListProps> = ({
       deploymentMode: editMode,
       firebaseConfig: parsedConfig,
       ownerEmail: editOwnerEmail,
+      ownerMobile: editOwnerMobile,
+      defaultPassword: editDefaultPass,
+      ownerPassword: editDefaultPass,
       updatedAt: Date.now()
     };
 
+    // 1. Update registered tenants list in localStorage
     const saved = JSON.parse(localStorage.getItem('ngo_registered_tenants') || '[]');
-    const newTenants = saved.map((t: any) => (t.id === editingTenant.id ? updatedTenant : t));
+    let exists = false;
+    const newTenants = saved.map((t: any) => {
+      if (t.id === editingTenant.id || t.clientId === editingTenant.clientId) {
+        exists = true;
+        return updatedTenant;
+      }
+      return t;
+    });
+    if (!exists) {
+      newTenants.push(updatedTenant);
+    }
     localStorage.setItem('ngo_registered_tenants', JSON.stringify(newTenants));
 
-    // Update domain directory mapping
+    // 2. Update domain directory mapping
     const dir = JSON.parse(localStorage.getItem('ngo_tenant_directory_cache') || '{}');
     if (editDomain) {
       dir[editDomain] = editingTenant.id;
     }
     localStorage.setItem('ngo_tenant_directory_cache', JSON.stringify(dir));
 
+    // 3. Update tenant settings
+    const currentSettings = JSON.parse(localStorage.getItem(`ngo_settings_${editingTenant.id}`) || '{}');
+    const updatedSettings = {
+      ...currentSettings,
+      orgName: { en: editNameEn, bn: editNameBn },
+      email: editOwnerEmail,
+      phone: editOwnerMobile
+    };
+    localStorage.setItem(`ngo_settings_${editingTenant.id}`, JSON.stringify(updatedSettings));
+    localStorage.setItem(`ngo_tenant_${editingTenant.id}_settings`, JSON.stringify(updatedSettings));
+
+    // 4. Update staff & owner user list
+    const rawUsers = localStorage.getItem(`ngo_users_${editingTenant.id}`);
+    const usersList = rawUsers ? JSON.parse(rawUsers) : [];
+    let hasOwner = false;
+    const newUsersList = usersList.map((u: any) => {
+      if (u.roleId === 'owner' || u.email?.toLowerCase() === editingTenant.ownerEmail?.toLowerCase()) {
+        hasOwner = true;
+        return {
+          ...u,
+          email: editOwnerEmail,
+          mobile: editOwnerMobile,
+          defaultPassword: editDefaultPass,
+          password: editDefaultPass,
+          displayName: { en: editNameEn, bn: editNameBn }
+        };
+      }
+      return u;
+    });
+    if (!hasOwner) {
+      newUsersList.unshift({
+        uid: `owner_${editingTenant.id}`,
+        tenantId: editingTenant.id,
+        email: editOwnerEmail,
+        mobile: editOwnerMobile,
+        defaultPassword: editDefaultPass,
+        password: editDefaultPass,
+        displayName: { en: editNameEn, bn: editNameBn },
+        roleId: 'owner',
+        branchId: 'all',
+        status: 'active',
+        createdAt: Date.now()
+      });
+    }
+    localStorage.setItem(`ngo_users_${editingTenant.id}`, JSON.stringify(newUsersList));
+
+    // 5. Update active session if it belongs to this tenant
+    const rawDemoUser = localStorage.getItem('ngo_demo_user');
+    if (rawDemoUser) {
+      try {
+        const demoUser = JSON.parse(rawDemoUser);
+        if (demoUser.tenantId === editingTenant.id && (demoUser.roleId === 'owner' || demoUser.email === editingTenant.ownerEmail)) {
+          demoUser.email = editOwnerEmail;
+          demoUser.mobile = editOwnerMobile;
+          demoUser.displayName = { en: editNameEn, bn: editNameBn };
+          localStorage.setItem('ngo_demo_user', JSON.stringify(demoUser));
+        }
+      } catch {}
+    }
+
+    // 6. Broadcast event across tabs/windows
+    window.dispatchEvent(new CustomEvent('ngo_tenant_updated', { detail: updatedTenant }));
+    window.dispatchEvent(new Event('storage'));
+
     setEditingTenant(null);
     onRefresh();
+    alert(isBangla ? `আলহামদুলিল্লাহ! "${editNameBn}" এর তথ্য, মোবাইল (${editOwnerMobile}) এবং পাসওয়ার্ড সফলভাবে আপডেট হয়েছে।` : 'Tenant updated successfully!');
   };
 
   const filteredTenants = tenants.filter((tenant) => {
@@ -244,8 +331,14 @@ export const TenantsList: React.FC<TenantsListProps> = ({
                     <div className="font-semibold text-sm">
                       {isBangla ? tenant.name.bn : tenant.name.en}
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {tenant.ownerEmail}
+                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap mt-0.5">
+                      <span>{tenant.ownerEmail}</span>
+                      {tenant.ownerMobile && (
+                        <>
+                          <span>•</span>
+                          <span className="font-mono text-emerald-700 font-semibold">{tenant.ownerMobile}</span>
+                        </>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>

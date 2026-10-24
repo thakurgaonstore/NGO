@@ -105,6 +105,13 @@ export interface Tenant {
   enabledModules: string[];
   quotas: TenantQuotaUsage;
   ownerEmail: string;
+  ownerMobile?: string;
+  defaultPassword?: string;
+  ownerPassword?: string;
+  ownerName?: {
+    en: string;
+    bn: string;
+  };
   createdAt: number; // Unix epoch millis
   updatedAt: number;
   expiresAt: number;

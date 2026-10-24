@@ -98,7 +98,25 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
       } else if (localMatch) {
         setTenant(localMatch);
-        setSettings(DEFAULT_FALLBACK_SETTINGS);
+        let customSettings: TenantSettings | null = null;
+        try {
+          const s = localStorage.getItem(`ngo_settings_${localMatch.id}`) || localStorage.getItem(`ngo_tenant_${localMatch.id}_settings`);
+          if (s) customSettings = JSON.parse(s);
+        } catch {}
+
+        if (customSettings) {
+          setSettings(customSettings);
+        } else {
+          setSettings({
+            ...DEFAULT_FALLBACK_SETTINGS,
+            orgName: {
+              en: localMatch.name?.en || 'NGO ERP',
+              bn: localMatch.name?.bn || 'এনজিও ইআরপি'
+            },
+            email: localMatch.ownerEmail || 'info@ngoerp.xyz',
+            phone: localMatch.ownerMobile || '01712-345678'
+          });
+        }
       } else {
         // Neither in cloud nor in registered list -> truly not found or deleted
         setTenant(null);
@@ -113,7 +131,23 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const found = list.find((t) => t.id === tenantId && !isTenantDeleted(t.id));
           if (found) {
             setTenant(found);
-            setSettings(DEFAULT_FALLBACK_SETTINGS);
+            let customSettings: TenantSettings | null = null;
+            try {
+              const s = localStorage.getItem(`ngo_settings_${found.id}`) || localStorage.getItem(`ngo_tenant_${found.id}_settings`);
+              if (s) customSettings = JSON.parse(s);
+            } catch {}
+
+            setSettings(
+              customSettings || {
+                ...DEFAULT_FALLBACK_SETTINGS,
+                orgName: {
+                  en: found.name?.en || 'NGO ERP',
+                  bn: found.name?.bn || 'এনজিও ইআরপি'
+                },
+                email: found.ownerEmail || 'info@ngoerp.xyz',
+                phone: found.ownerMobile || '01712-345678'
+              }
+            );
             setIsLoading(false);
             return;
           }
@@ -153,6 +187,31 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     window.addEventListener('ngo_tenant_deleted', handleTenantDeleted);
     return () => window.removeEventListener('ngo_tenant_deleted', handleTenantDeleted);
   }, [tenant, resolution]);
+
+  // Listen to cross-tab/modal tenant update events
+  useEffect(() => {
+    const handleTenantUpdated = (e: any) => {
+      const updated = e.detail as Tenant;
+      if (updated && tenant && (updated.id === tenant.id || updated.clientId === tenant.clientId)) {
+        setTenant(updated);
+        try {
+          const s = localStorage.getItem(`ngo_settings_${updated.id}`) || localStorage.getItem(`ngo_tenant_${updated.id}_settings`);
+          if (s) {
+            setSettings(JSON.parse(s));
+          } else {
+            setSettings((prev) => ({
+              ...(prev || DEFAULT_FALLBACK_SETTINGS),
+              orgName: { en: updated.name.en, bn: updated.name.bn },
+              email: updated.ownerEmail,
+              phone: updated.ownerMobile || prev?.phone || '01712-345678'
+            }));
+          }
+        } catch {}
+      }
+    };
+    window.addEventListener('ngo_tenant_updated', handleTenantUpdated);
+    return () => window.removeEventListener('ngo_tenant_updated', handleTenantUpdated);
+  }, [tenant]);
 
   // Apply Tenant's Primary Color Dynamically
   useEffect(() => {
