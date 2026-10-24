@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useI18n } from '../../core/i18n/I18nContext';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useTenant } from '../../core/tenant/TenantContext';
@@ -51,13 +51,24 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
     return isMahinErpPath ? 'superadmin' : 'client';
   });
 
-  // Client Login Credentials (locked to resolved clientId on custom domain)
-  const [clientId, setClientId] = useState<string>(resolution.clientId || tenant?.clientId || 'SHEBA');
-  const [identifier, setIdentifier] = useState<string>('01700-000000');
-  const [password, setPassword] = useState<string>('NgoPass2026!');
+  // Client Login Credentials (clean initial state, no leftover dummy pre-fills)
+  const [clientId, setClientId] = useState<string>(() => resolution.clientId || (hasKnownDomain && tenant?.clientId ? tenant.clientId : ''));
+  const [identifier, setIdentifier] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Available registered tenants for quick fill
+  const availableTenants = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('ngo_registered_tenants');
+      const list = raw ? JSON.parse(raw) : [];
+      return Array.isArray(list) ? list.filter((t: any) => t.status === 'active') : [];
+    } catch {
+      return [];
+    }
+  }, []);
 
   // Password Change Modal State
   const [isChangePassOpen, setIsChangePassOpen] = useState<boolean>(false);
@@ -68,10 +79,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
   useEffect(() => {
     if (resolution.clientId) {
       setClientId(resolution.clientId);
-    } else if (tenant?.clientId) {
+    } else if (hasKnownDomain && tenant?.clientId) {
       setClientId(tenant.clientId);
     }
-  }, [resolution.clientId, tenant?.clientId]);
+  }, [resolution.clientId, tenant?.clientId, hasKnownDomain]);
 
   useEffect(() => {
     if (mustChangePassword) {
@@ -113,7 +124,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
       loginAsSuperAdminMock();
       onLoginSuccess(true);
     } else {
-      loginAsTenantMock(demoRole, tenant?.id || 'sheba-manobik');
+      let targetTenantId = '';
+      try {
+        const raw = localStorage.getItem('ngo_registered_tenants');
+        const list = raw ? JSON.parse(raw) : [];
+        const match = list.find(
+          (t: any) =>
+            clientId &&
+            (t.clientId?.toUpperCase() === clientId.trim().toUpperCase() ||
+              t.id?.toLowerCase() === clientId.trim().toLowerCase() ||
+              t.subdomain?.toLowerCase() === clientId.trim().toLowerCase())
+        ) || list[0];
+        if (match) targetTenantId = match.id;
+      } catch {}
+
+      if (!targetTenantId) {
+        targetTenantId = tenant?.id || 'tgps';
+      }
+
+      loginAsTenantMock(demoRole, targetTenantId);
       onLoginSuccess(false);
     }
   };
@@ -169,7 +198,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                   type="button"
                   onClick={() => {
                     setActiveTab('client');
-                    setIdentifier('01911-889900');
                     window.history.replaceState(null, '', '/cerp');
                   }}
                   className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all ${
@@ -243,15 +271,40 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
                       </span>
                     </div>
                   ) : (
-                    <div className="relative mt-1">
-                      <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        value={clientId}
-                        onChange={(e) => setClientId(e.target.value.toUpperCase())}
-                        placeholder="e.g. JAGORANI"
-                        className="pl-9 font-mono uppercase"
-                        required
-                      />
+                    <div className="space-y-1.5 mt-1">
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          value={clientId}
+                          onChange={(e) => setClientId(e.target.value.toUpperCase())}
+                          placeholder="e.g. TGPS"
+                          className="pl-9 font-mono uppercase"
+                          required
+                        />
+                      </div>
+                      {availableTenants.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                          <span className="text-[10px] text-muted-foreground font-medium">
+                            {isBangla ? 'ক্লিক করে পূরণ করুন:' : 'Quick Select:'}
+                          </span>
+                          {availableTenants.map((t: any) => (
+                            <button
+                              key={t.id || t.clientId}
+                              type="button"
+                              onClick={() => {
+                                setClientId(t.clientId || t.id);
+                                if (t.ownerMobile) setIdentifier(t.ownerMobile);
+                                setPassword(t.defaultPassword || t.ownerPassword || 'NgoPass2026!');
+                              }}
+                              className="px-2 py-0.5 text-[10.5px] rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/90 font-semibold hover:bg-emerald-100 transition-colors flex items-center gap-1 shadow-2xs"
+                              title="ক্লিক করলে এনজিও কোড, মোবাইল ও পাসওয়ার্ড পূরণ হবে"
+                            >
+                              <span className="font-mono font-bold text-emerald-700">{t.clientId}</span>
+                              <span className="max-w-[140px] truncate">({t.name?.bn || t.name?.en})</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

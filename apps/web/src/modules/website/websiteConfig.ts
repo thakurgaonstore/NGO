@@ -259,6 +259,106 @@ export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
   contactFormClosedNoticeEn: 'Online message submissions are temporarily paused. Please reach out to our branch office or helpline for urgent services.'
 };
 
+export const buildTenantWebsiteConfig = (tenant: any): NgoWebsiteConfig => {
+  const brandBn = tenant?.name?.bn || 'এনজিও উন্নয়ন সংস্থা';
+  const brandEn = tenant?.name?.en || 'NGO Development Society';
+  const clientId = tenant?.clientId || 'NGO';
+  const phone = tenant?.ownerMobile || '০১৮১১-৫৪৪৯৯২';
+  const email = tenant?.ownerEmail || 'info@ngoerp.xyz';
+  const domain = tenant?.domain || `${tenant?.subdomain || 'ngo'}.ngoerp.xyz`;
+
+  return {
+    ...DEFAULT_WEBSITE_CONFIG,
+    tenantId: tenant?.id || 'tgps',
+    clientId,
+    customDomain: domain,
+    brandNameBn: brandBn,
+    brandNameEn: brandEn,
+    sloganBn: 'প্রান্তিক মানুষের অর্থনৈতিক ক্ষমতায়ন, দারিদ্র্য বিমোচন ও টেকসই সামাজিক উন্নয়ন',
+    sloganEn: 'Empowering Communities, Eliminating Poverty & Sustainable Growth',
+    browserTitleBn: `${brandBn} — ক্ষুদ্রঋণ, সঞ্চয় ও সমাজকল্যাণ সংস্থা`,
+    browserTitleEn: `${brandEn} — Microfinance & Community Development NGO`,
+    seoDescriptionBn: `${brandBn} বাংলাদেশের সুবিধাবঞ্চিত ও প্রান্তিক জনগোষ্ঠীর ক্ষমতায়নে নিবেদিত একটি শীর্ষস্থানীয় ক্ষুদ্রঋণ ও সমাজসেবামূলক প্রতিষ্ঠান।`,
+    seoDescriptionEn: `${brandEn} is dedicated to grassroots economic empowerment, transparent microfinance and sustainable community welfare.`,
+    hotline: phone,
+    email: email,
+    govRegNo: `MRA লাইসেন্স নং: ০০${Math.floor(100 + Math.random() * 899)}-${clientId} | সমাজসেবা রেজি: নং-০৭${Math.floor(100 + Math.random() * 899)}`,
+    sliderItems: [
+      {
+        id: 'slide-1',
+        titleBn: `${brandBn}-এর সাথে স্বাবলম্বী ভবিষ্যতের পথে`,
+        titleEn: `Towards a Self-Reliant Future with ${brandEn}`,
+        subtitleBn: 'সহজ কিস্তি, স্বল্প মুনাফায় ক্ষুদ্রঋণ এবং আকর্ষণীয় সঞ্চয় স্কিমের মাধ্যমে আপনার স্বপ্ন বাস্তবায়নে আমরা প্রতিশ্রুতিবদ্ধ।',
+        subtitleEn: 'Empowering grassroots entrepreneurs with accessible credit, low interest and high-yield savings.',
+        badgeBn: 'এমআরএ (MRA) লাইসেন্সপ্রাপ্ত ও বিশ্বস্ত প্রতিষ্ঠান',
+        badgeEn: 'MRA Licensed & Trusted Organization',
+        imageUrl: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1600&auto=format&fit=crop&q=80',
+        ctaTextBn: 'সঞ্চয় ও ঋণ সেবা দেখুন',
+        ctaTextEn: 'Explore Services',
+        ctaLink: '#microfinance',
+        secondaryCtaTextBn: 'যোগাযোগ ও আবেদন',
+        secondaryCtaTextEn: 'Apply / Contact',
+        secondaryCtaLink: '#contact'
+      },
+      {
+        id: 'slide-2',
+        titleBn: 'নারী উদ্যোক্তা ও প্রান্তিক খামারিদের স্বপ্নপূরণে বিশেষ আর্থিক সহায়তা',
+        titleEn: 'Empowering Women Entrepreneurs & Grassroots Farmers',
+        subtitleBn: 'কোনো গোপন চার্জ নেই, স্বচ্ছ হিসাবরক্ষণ এবং দ্রুততম সময়ে ঋণ বিতরণ সুবিধা।',
+        subtitleEn: 'Zero hidden fees, transparent accounting, and expedited disbursement.',
+        badgeBn: 'বিশেষ নারী উদ্যোক্তা প্যাকেজ',
+        badgeEn: 'Special Women Entrepreneur Package',
+        imageUrl: 'https://images.unsplash.com/photo-1593113598332-cd288d649433?w=1600&auto=format&fit=crop&q=80',
+        ctaTextBn: 'মুনাফা ক্যালকুলেটর',
+        ctaTextEn: 'Profit Calculator',
+        ctaLink: '#calculator',
+        secondaryCtaTextBn: 'নাগরিক সেবা সনদ',
+        secondaryCtaTextEn: 'Citizen Charter',
+        secondaryCtaLink: '#notices'
+      },
+      {
+        id: 'slide-3',
+        titleBn: 'সামাজিক কল্যাণ, ফ্রি চিকিৎসাসেবা ও শিক্ষাবৃত্তি কর্মসূচি',
+        titleEn: 'Community Healthcare & Student Scholarship Initiatives',
+        subtitleBn: 'আর্থ-সামাজিক উন্নয়নে সদস্য ও তাঁদের পরিবারের কল্যাণে নিয়মিত সামাজিক কর্মসূচি পরিচালনা করছি।',
+        subtitleEn: 'Comprehensive CSR initiatives designed for family healthcare and children education.',
+        badgeBn: 'সামাজিক দায়বদ্ধতা প্রকল্প (CSR)',
+        badgeEn: 'CSR & Community Welfare',
+        imageUrl: 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?w=1600&auto=format&fit=crop&q=80',
+        ctaTextBn: 'দান বা সহায়তা করুন',
+        ctaTextEn: 'Support / Donate',
+        ctaLink: '#contact'
+      }
+    ],
+    newsTickerItems: [
+      {
+        id: 'tick-1',
+        titleBn: `${brandBn}-এর আওতাধীন সকল শাখায় নতুন অর্থবছরে সহজ শর্তে কৃষি ও ডেইরি ঋণ আবেদন চলছে।`,
+        titleEn: 'Agricultural & Dairy microloan applications are now open across all branches.',
+        date: '২০২৬-১০-২৪',
+        isUrgent: true
+      },
+      {
+        id: 'tick-2',
+        titleBn: 'মেধাবী ছাত্র-ছাত্রীদের মাঝে ২০২৬ শিক্ষাবর্ষের এককালীন শিক্ষাবৃত্তি প্রদান অনুষ্ঠান আগামী সপ্তাহে।',
+        titleEn: 'Annual Student Scholarship ceremony scheduled for next week.',
+        date: '২০২৬-১০-২২'
+      },
+      {
+        id: 'tick-3',
+        titleBn: 'সদস্যদের সুবিধার্থে সাপ্তাহিক সঞ্চয় ও ডিপিএস কিস্তি ডিজিটাল উপায়ে পরিশোধের ব্যবস্থা চালু হয়েছে।',
+        titleEn: 'Digital payment facilities now available for weekly savings and DPS installments.',
+        date: '২০২৬-১০-২০'
+      }
+    ],
+    footerAboutBn: `${brandBn} একটি নিবেদিতপ্রাণ ক্ষুদ্রঋণ ও সমাজসেবামূলক প্রতিষ্ঠান। আমরা দারিদ্র্য বিমোচন, নারীর ক্ষমতায়ন এবং তৃণমূল অর্থনীতির টেকসই উন্নয়নে অবিচল।`,
+    footerAboutEn: `${brandEn} is a dedicated microfinance and community development institution committed to poverty reduction and women empowerment.`,
+    footerHelpline: `${phone} / ০১৭০০-০০০০০০`,
+    footerCopyrightTextBn: `© ২০২৬ ${brandBn}। সর্বস্বত্ব সংরক্ষিত।`,
+    footerCopyrightTextEn: `© 2026 ${brandEn}. All rights reserved.`
+  };
+};
+
 export const getStoredWebsiteConfig = (tenantId?: string): NgoWebsiteConfig => {
   const tid = tenantId || 'sheba-manobik';
   const saved = localStorage.getItem(`ngo_website_config_${tid}`);
@@ -269,6 +369,43 @@ export const getStoredWebsiteConfig = (tenantId?: string): NgoWebsiteConfig => {
       // ignore
     }
   }
+
+  // If not saved, look up the registered tenant details to auto-construct rich website config
+  try {
+    const raw = localStorage.getItem('ngo_registered_tenants');
+    const tenants = raw ? JSON.parse(raw) : [];
+    const matched = tenants.find(
+      (t: any) =>
+        t.id === tid ||
+        t.clientId?.toUpperCase() === tid.toUpperCase() ||
+        t.subdomain?.toLowerCase() === tid.toLowerCase()
+    );
+    if (matched) {
+      const generated = buildTenantWebsiteConfig(matched);
+      // Persist it so changes can be edited later
+      localStorage.setItem(`ngo_website_config_${tid}`, JSON.stringify(generated));
+      return generated;
+    }
+  } catch {}
+
+  // Fallback if tenant is tgps
+  if (tid.toLowerCase().includes('tgps')) {
+    const tgpsFallback = buildTenantWebsiteConfig({
+      id: 'tgps',
+      clientId: 'TGPS',
+      subdomain: 'tgps',
+      domain: 'tgps.ngoerp.xyz',
+      name: {
+        bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)',
+        en: 'Thakurgaon Green Practice Society (TGPS)'
+      },
+      ownerMobile: '01811544992',
+      ownerEmail: 'shopthakurgaon@gmail.com'
+    });
+    localStorage.setItem(`ngo_website_config_${tid}`, JSON.stringify(tgpsFallback));
+    return tgpsFallback;
+  }
+
   return DEFAULT_WEBSITE_CONFIG;
 };
 

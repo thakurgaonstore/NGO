@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useI18n } from '../../core/i18n/I18nContext';
 import { useTenant } from '../../core/tenant/TenantContext';
+import { useAuth } from '../../core/auth/AuthContext';
 import { Tenant, toBanglaDigits, formatCurrency } from '@ngo-erp/shared';
 import { isTenantDeleted } from '../../core/tenant/tenantCleanupService';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card';
@@ -19,6 +20,34 @@ import {
 } from 'lucide-react';
 
 const INITIAL_DEMO_TENANTS: Tenant[] = [
+  {
+    id: 'tgps',
+    clientId: 'TGPS',
+    subdomain: 'tgps',
+    domain: 'tgps.ngoerp.xyz',
+    name: {
+      en: 'Thakurgaon Green Practice Society (TGPS)',
+      bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
+    },
+    planId: 'enterprise',
+    status: 'active',
+    deploymentMode: 'MODE_A',
+    enabledModules: ['dashboard', 'organization', 'members', 'projects', 'microcredit', 'donors_grants', 'accounts', 'field_ops', 'hr_payroll', 'inventory', 'website', 'reports', 'settings'],
+    quotas: {
+      usersCount: 15,
+      branchesCount: 4,
+      estimatedDailyReads: 1250,
+      estimatedDailyWrites: 180,
+      smsCreditsRemaining: 4500
+    },
+    ownerEmail: 'shopthakurgaon@gmail.com',
+    ownerMobile: '01811544992',
+    defaultPassword: 'NgoPass2026!',
+    ownerPassword: 'NgoPass2026!',
+    createdAt: Date.now() - 30 * 86400000,
+    updatedAt: Date.now(),
+    expiresAt: Date.now() + 335 * 86400000
+  },
   {
     id: 'sheba-manobik',
     clientId: 'SHEBA',
@@ -80,6 +109,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
 }) => {
   const { isBangla, t } = useI18n();
   const { switchTenant } = useTenant();
+  const { loginAsTenantMock } = useAuth();
 
   // Initialize and load registered tenants
   const [tenants, setTenants] = useState<Tenant[]>(() => {
@@ -148,6 +178,7 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
 
   const handleImpersonate = async (tenantId: string) => {
     await switchTenant(tenantId);
+    loginAsTenantMock('owner', tenantId);
     onNavigateToTenantApp(tenantId);
   };
 

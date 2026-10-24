@@ -51,13 +51,27 @@ export const ClientDashboardShell: React.FC<ClientDashboardShellProps> = ({
     }
   };
 
-  // Branch Performance Data
-  const branchMetrics = [
-    { name: isBangla ? 'সাভার প্রধান শাখা (ঢাকা)' : 'Savar Main Branch', members: 650, loans: '৳ ১.১০ কোটি', rate: '৯৯.২%', active: true },
-    { name: isBangla ? 'ধামরাই উপজেলা শাখা' : 'Dhamrai Branch', members: 420, loans: '৳ ৬৫.০০ লাখ', rate: '৯৮.৪%', active: true },
-    { name: isBangla ? 'মানিকগঞ্জ সদর শাখা' : 'Manikganj Branch', members: 510, loans: '৳ ৮০.০০ লাখ', rate: '৯৭.৯%', active: true },
-    { name: isBangla ? 'সিংগাইর আঞ্চলিক কেন্দ্র' : 'Singair Regional Center', members: 260, loans: '৳ ৩০.৫০ লাখ', rate: '৯৮.৮%', active: true }
-  ];
+  // Branch Performance Data dynamically customized per tenant
+  const branchMetrics = React.useMemo(() => {
+    const isTgps =
+      tenant?.clientId?.toUpperCase() === 'TGPS' ||
+      tenant?.name?.bn?.includes('ঠাকুরগাঁও') ||
+      tenant?.id?.includes('tgps');
+    if (isTgps) {
+      return [
+        { name: isBangla ? 'ঠাকুরগাঁও সদর প্রধান কার্যালয়' : 'Thakurgaon Sadar Head Office', members: 450, loans: '৳ ৭৫.০০ লাখ', rate: '৯৯.৫%', active: true },
+        { name: isBangla ? 'পীরগঞ্জ শাখা অফিস' : 'Pirganj Branch Office', members: 320, loans: '৳ ৪৮.৫০ লাখ', rate: '৯৮.৯%', active: true },
+        { name: isBangla ? 'রানীশংকৈল আঞ্চলিক শাখা' : 'Ranisankail Regional Branch', members: 280, loans: '৳ ৪২.০০ লাখ', rate: '৯৮.৪%', active: true },
+        { name: isBangla ? 'বালিয়াডাঙ্গী শাখা কেন্দ্র' : 'Baliadangi Center', members: 190, loans: '৳ ২৫.০০ লাখ', rate: '৯৯.১%', active: true }
+      ];
+    }
+    return [
+      { name: isBangla ? `${tenant?.name?.bn || 'এনজিও'} প্রধান শাখা` : 'Head Office Branch', members: 650, loans: '৳ ১.১০ কোটি', rate: '৯৯.২%', active: true },
+      { name: isBangla ? 'উপজেলা শাখা নং ১' : 'Upazila Branch 1', members: 420, loans: '৳ ৬৫.০০ লাখ', rate: '৯৮.৪%', active: true },
+      { name: isBangla ? 'উপজেলা শাখা নং ২' : 'Upazila Branch 2', members: 510, loans: '৳ ৮০.০০ লাখ', rate: '৯৭.৯%', active: true },
+      { name: isBangla ? 'আঞ্চলিক ফিল্ড কেন্দ্র' : 'Regional Field Center', members: 260, loans: '৳ ৩০.৫০ লাখ', rate: '৯৮.৮%', active: true }
+    ];
+  }, [tenant, isBangla]);
 
   return (
     <div className="space-y-6">

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useI18n } from '../../core/i18n/I18nContext';
 import { useTenant } from '../../core/tenant/TenantContext';
 import { useAuth } from '../../core/auth/AuthContext';
-import { ERP_MODULES, ErpModuleMeta } from '@ngo-erp/shared';
+import { ERP_MODULES, ErpModuleMeta, toBanglaDigits } from '@ngo-erp/shared';
 import { getTenantUnreadCount } from '../../core/inquiry/inquiryService';
 import { LanguageToggle } from '../../components/shared/LanguageToggle';
 import { Button } from '../../components/ui/button';
@@ -98,6 +98,36 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
   const [mobileSearchQuery, setMobileSearchQuery] = useState<string>('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
+
+  // Live Bengali Day, Date & Clock for Top Header Bar
+  const [currentBanglaDateTime, setCurrentBanglaDateTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      const banglaDays = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
+      const banglaMonths = [
+        'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+        'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+      ];
+      const dayName = banglaDays[now.getDay()];
+      const dayNum = toBanglaDigits(now.getDate());
+      const monthName = banglaMonths[now.getMonth()];
+      const year = toBanglaDigits(now.getFullYear());
+
+      let hours = now.getHours();
+      const minutes = toBanglaDigits(now.getMinutes().toString().padStart(2, '0'));
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      const hoursStr = toBanglaDigits(hours.toString().padStart(2, '0'));
+
+      setCurrentBanglaDateTime(`${dayName}, ${dayNum} ${monthName} ${year} | ${hoursStr}:${minutes} ${ampm}`);
+    };
+
+    updateTime();
+    const interval = setInterval(updateTime, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // 60-Minute Inactivity Auto-Logout Hook
   useInactivityTimer({
@@ -233,26 +263,26 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
         {/* ======================================================== */}
         {/* Desktop Sidebar: Scroll-Free, Non-Dropdown Categorized    */}
         {/* ======================================================== */}
-        <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card/85 backdrop-blur-md justify-between shrink-0 h-screen sticky top-0 overflow-hidden shadow-xs">
+        <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card justify-between shrink-0 h-screen sticky top-0 overflow-hidden shadow-xs">
           {/* Top Section: Brand Header & Categorized Navigation */}
           <div className="flex flex-col flex-1 min-h-0 p-3 pb-1">
             {/* Tenant Brand Identity */}
-            <div className="flex items-center gap-2.5 px-1 py-1 mb-2 shrink-0 border-b border-border/70 pb-2.5">
+            <div className="flex items-center gap-2.5 px-1 py-1 mb-2.5 shrink-0 border-b border-border/80 pb-2.5">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shrink-0 transition-transform hover:scale-105"
-                style={{ backgroundColor: settings?.primaryColor || 'hsl(var(--primary))' }}
+                className="w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-white shadow-xs shrink-0 transition-transform hover:scale-105"
+                style={{ backgroundColor: settings?.primaryColor || '#059669' }}
               >
                 {tenant?.clientId?.slice(0, 2) || 'NG'}
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="font-bold text-xs leading-tight text-foreground truncate" title={isBangla ? tenant?.name.bn : tenant?.name.en}>
+                <h1 className="font-extrabold text-xs leading-tight text-slate-900 truncate" title={isBangla ? tenant?.name.bn : tenant?.name.en}>
                   {isBangla ? tenant?.name.bn : tenant?.name.en}
                 </h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-muted text-muted-foreground border border-border">
+                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
                     {tenant?.clientId}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[9.5px] text-emerald-600 font-semibold">
+                  <span className="inline-flex items-center gap-1 text-[9.5px] text-emerald-600 font-bold">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     {isBangla ? 'সক্রিয়' : 'Live'}
                   </span>
@@ -261,25 +291,25 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
             </div>
 
             {/* Scroll-Free Non-Dropdown Categorized Navigation */}
-            <nav className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 selection:bg-transparent">
+            <nav className="flex-1 overflow-hidden space-y-1 pr-0.5 selection:bg-transparent">
               {categories.map((cat) => {
                 const catModules = enabledModulesList.filter((m) => cat.moduleIds.includes(m.id));
                 if (catModules.length === 0) return null;
 
                 return (
                   <div key={cat.id} className="space-y-0.5">
-                    {/* Clean Category Header Label (Static, Non-Dropdown) */}
-                    <div className="px-1.5 pt-1 pb-0.5 flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/80">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    {/* Clean Category Header Label (High Contrast, Static) */}
+                    <div className="px-2 py-0.5 flex items-center justify-between rounded bg-slate-100/90 border border-slate-200/60 mb-0.5">
+                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wide text-slate-700">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                         <span>{isBangla ? cat.name.bn : cat.name.en}</span>
                       </div>
-                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.1 rounded bg-muted/60 text-muted-foreground">
+                      <span className="text-[9.5px] font-mono font-bold px-1.5 py-0.1 rounded bg-white text-slate-600 border border-slate-200">
                         {catModules.length}
                       </span>
                     </div>
 
-                    {/* Category Modules - Compact & Scroll-Free */}
+                    {/* Category Modules - High Contrast, Compact & Scroll-Free */}
                     <div className="space-y-0.5">
                       {catModules.map((mod) => {
                         const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
@@ -290,15 +320,15 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
                           <button
                             key={mod.id}
                             onClick={() => onModuleChange(mod.id)}
-                            className={`w-full flex items-center justify-between px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all group ${
+                            className={`w-full flex items-center justify-between px-2.5 py-1 rounded-lg text-[11.5px] transition-all group ${
                               isActive
-                                ? 'bg-emerald-600 text-white shadow-xs font-bold'
-                                : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30'
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-xs font-bold'
+                                : 'text-slate-800 font-semibold hover:text-emerald-700 hover:bg-emerald-50/90'
                             }`}
                           >
                             <div className="flex items-center gap-2 min-w-0">
                               <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-105 ${
-                                isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600'
+                                isActive ? 'text-white' : 'text-slate-600 group-hover:text-emerald-600'
                               }`} />
                               <span className="truncate leading-none">{isBangla ? mod.name.bn : mod.name.en}</span>
                             </div>
@@ -317,63 +347,16 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
             </nav>
           </div>
 
-          {/* Bottom Section: Profile, Backup Button, Inactivity Indicator & Explicit "লগআউট" Button */}
-          <div className="p-3 border-t border-border bg-card/95 space-y-2 shrink-0">
-            {/* Quick Full Backup & Restore Trigger */}
+          {/* Bottom Section: Compact Full Backup & Restore Trigger Only (Scroll-Free) */}
+          <div className="p-2.5 border-t border-border bg-card shrink-0">
             <button
               type="button"
               onClick={() => setShowBackupModal(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/90 rounded-lg hover:bg-emerald-100 transition-colors shadow-2xs"
+              className="w-full flex items-center justify-center gap-1.5 py-2 px-2 text-[11.5px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors shadow-2xs"
             >
-              <Database className="w-3.5 h-3.5 text-emerald-600" />
+              <Database className="w-4 h-4 text-emerald-600" />
               <span>{isBangla ? 'ডাটা ব্যাকআপ ও রিস্টোর' : 'Data Backup & Restore'}</span>
             </button>
-
-            {/* User Profile Card with Avatar */}
-            <div className="flex items-center justify-between p-1.5 rounded-lg bg-muted/40 border border-border/60">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20">
-                  {currentUser?.displayName?.bn?.slice(0, 2) || currentUser?.displayName?.en?.slice(0, 2) || 'OP'}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-[11px] truncate text-foreground leading-tight">
-                    {currentUser?.displayName?.bn || currentUser?.displayName?.en || 'নির্বাহী পরিচালক'}
-                  </div>
-                  <div className="text-[9.5px] text-muted-foreground truncate flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                    <span>{isBangla ? 'মালিক / পরিচালক' : role}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Inactivity Auto-Lock Shield Indicator */}
-              <div className="flex items-center gap-1 text-[9px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60" title="৬০ মিনিট ইনএকটিভ থাকলে অটোমেটিক লগআউট হবে">
-                <Clock className="w-2.5 h-2.5" />
-                <span>৬০মি</span>
-              </div>
-            </div>
-
-            {/* Dedicated Explicit "লগআউট" Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowLogoutConfirm(true)}
-              className="w-full h-8 text-xs font-bold text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/50 dark:hover:bg-rose-950/40 flex items-center justify-center gap-1.5 rounded-lg transition-all shadow-2xs"
-            >
-              <LogOut className="w-3.5 h-3.5 text-rose-600" />
-              <span>{isBangla ? 'লগআউট' : 'Sign Out'}</span>
-            </Button>
-
-            {/* Switch to Super Admin Portal if authorized */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onSwitchToSuperAdmin}
-              className="w-full text-[10.5px] justify-start h-7 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="w-3 h-3 mr-1.5 shrink-0" />
-              <span className="truncate">{isBangla ? 'সুপার এডমিন পোর্টাল' : 'Super Admin Portal'}</span>
-            </Button>
           </div>
         </aside>
 
@@ -381,10 +364,10 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
         {/* Main Content Area: Responsive Header, Breadcrumbs, Views */}
         {/* ======================================================== */}
         <div className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
-          {/* Desktop & Tablet Top Bar */}
-          <header className="h-16 border-b border-border bg-card/80 backdrop-blur-md px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs">
-            {/* Left: Mobile Drawer Trigger & Current Page Title */}
-            <div className="flex items-center gap-3">
+          {/* Desktop & Tablet Top Bar (With Logout, NGO Name, Safe Timer, Logo, Bar & Date) */}
+          <header className="h-16 border-b border-border bg-card/95 backdrop-blur-md px-3 sm:px-5 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+            {/* Left: Mobile Drawer Trigger, Current Section Title */}
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="md:hidden p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -393,53 +376,100 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
 
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary hidden sm:block" />
-                <h2 className="font-bold text-sm sm:text-base text-foreground">
-                  {enabledModulesList.find((m) => m.id === currentModule)?.name[isBangla ? 'bn' : 'en'] || 'Overview'}
-                </h2>
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center font-extrabold text-white text-xs shadow-2xs shrink-0 md:hidden"
+                  style={{ backgroundColor: settings?.primaryColor || '#059669' }}
+                >
+                  {tenant?.clientId?.slice(0, 2) || 'NG'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-extrabold text-sm sm:text-base text-slate-900 leading-none">
+                      {enabledModulesList.find((m) => m.id === currentModule)?.name[isBangla ? 'bn' : 'en'] || 'Overview'}
+                    </h2>
+                    <span className="hidden sm:inline-block px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                      {tenant?.clientId}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-medium truncate hidden sm:block mt-0.5">
+                    {isBangla ? tenant?.name.bn : tenant?.name.en}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Right: Role Perspective Switcher, Public Website, Language Toggle */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Role Perspective Switcher */}
-              <div className="hidden lg:flex items-center gap-1.5 bg-muted/60 px-2.5 py-1 rounded-xl text-xs border border-border">
-                <Shield className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-[11px] text-muted-foreground font-semibold">
-                  {isBangla ? 'অ্যাক্সেস রোল:' : 'Role Access:'}
-                </span>
-                <select
-                  value={activeRoleView}
-                  onChange={(e) => {
-                    const newRole = e.target.value;
-                    setActiveRoleView(newRole);
-                    if (newRole === 'field_officer' && !FIELD_OFFICER_MODULES.includes(currentModule)) {
-                      onModuleChange('microcredit');
-                    }
-                  }}
-                  className="bg-background text-foreground font-bold text-xs h-7 px-2 rounded-lg border border-input focus:ring-1 focus:ring-primary focus:outline-none cursor-pointer"
-                >
-                  <option value="owner">{isBangla ? 'নির্বাহী পরিচালক (মালিক)' : 'Executive Director'}</option>
-                  <option value="manager">{isBangla ? 'শাখা ব্যবস্থাপক (ম্যানেজার)' : 'Branch Manager'}</option>
-                  <option value="field_officer">{isBangla ? 'মাঠ কর্মকর্তা (কিস্তি আদায়)' : 'Field Officer'}</option>
-                </select>
+            {/* Center: Live Bengali Day, Date & Clock */}
+            <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-200 rounded-xl text-slate-700 shadow-2xs">
+              <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="text-xs font-bold font-sans tracking-wide">
+                {currentBanglaDateTime}
+              </span>
+            </div>
+
+            {/* Right: Inactivity Timer, Role Selector, User Profile Card, Public Site, Super Admin Return, and Explicit LOGOUT */}
+            <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+              {/* Safe Inactivity Session Indicator (৬০ মিনিট) */}
+              <div
+                className="hidden sm:flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 shadow-2xs"
+                title="৬০ মিনিট ইনএকটিভ থাকলে নিরাপত্তার জন্য স্বয়ংক্রিয়ভাবে লগআউট হবে"
+              >
+                <Clock className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>{isBangla ? 'নিরাপদ সময়: ৬০মি.' : 'Safe Session: 60m'}</span>
+              </div>
+
+              {/* User Profile Badge (Director / Owner) */}
+              <div className="hidden lg:flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-50 border border-slate-200 shadow-2xs">
+                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-2xs">
+                  {currentUser?.displayName?.bn?.slice(0, 2) || currentUser?.displayName?.en?.slice(0, 2) || 'নি'}
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="font-bold text-[11px] text-slate-900 truncate leading-none">
+                    {currentUser?.displayName?.bn || currentUser?.displayName?.en || 'নির্বাহী পরিচালক'}
+                  </div>
+                  <div className="text-[10px] text-emerald-700 font-semibold mt-0.5 leading-none">
+                    {isBangla ? 'মালিক / পরিচালক' : role}
+                  </div>
+                </div>
               </div>
 
               {/* View Public Website */}
               {onViewPublicSite && (
                 <button
                   onClick={onViewPublicSite}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-primary/20 text-primary hover:bg-primary/10 transition-colors shadow-xs"
+                  className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold rounded-xl border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs"
                   title={isBangla ? 'পাবলিক ওয়েবসাইট দেখুন' : 'View Public Website'}
                 >
-                  <Globe className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{isBangla ? 'ওয়েবসাইট দেখুন' : 'View Site'}</span>
+                  <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="hidden md:inline">{isBangla ? 'ওয়েবসাইট' : 'Website'}</span>
+                </button>
+              )}
+
+              {/* Switch to Super Admin Portal if authorized or impersonating */}
+              {(isImpersonating || currentUser?.email?.includes('superadmin')) && (
+                <button
+                  onClick={onSwitchToSuperAdmin}
+                  className="hidden md:flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-colors shadow-2xs"
+                  title="সুপার এডমিন পোর্টালে ফিরে যান"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 text-amber-700" />
+                  <span className="text-[11px]">{isBangla ? 'সুপার এডমিন' : 'Super Admin'}</span>
                 </button>
               )}
 
               {/* Language Switcher */}
               <LanguageToggle />
+
+              {/* Dedicated Top Bar "লগআউট" Button */}
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-extrabold text-white bg-rose-600 hover:bg-rose-700 active:scale-95 rounded-xl transition-all shadow-sm"
+                title={isBangla ? 'নিরাপদে লগআউট করুন' : 'Sign Out'}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>{isBangla ? 'লগআউট' : 'Sign Out'}</span>
+              </button>
             </div>
           </header>
 

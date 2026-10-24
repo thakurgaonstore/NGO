@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Server
 } from 'lucide-react';
+import { buildTenantWebsiteConfig } from '../website/websiteConfig';
 
 interface ProvisioningWizardProps {
   onSuccess: (newTenantId: string) => void;
@@ -227,6 +228,7 @@ export const TenantProvisioningWizard: React.FC<ProvisioningWizardProps> = ({ on
       }]));
       localStorage.setItem(`ngo_tenant_${tenantId}_coa`, JSON.stringify(DEFAULT_NGO_CHART_OF_ACCOUNTS));
       localStorage.setItem(`ngo_tenant_${tenantId}_roles`, JSON.stringify(DEFAULT_TENANT_ROLES));
+      localStorage.setItem(`ngo_website_config_${tenantId}`, JSON.stringify(buildTenantWebsiteConfig(newTenant)));
 
       setTimeout(() => {
         setIsSubmitting(false);

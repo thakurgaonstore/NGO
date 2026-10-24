@@ -127,7 +127,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
       }
 
-      // 2. Lookup Tenant by Client ID or Subdomain
+      // 2. Lookup Tenant by Client ID, Subdomain or Phone/Email lookup
       if (isTenantDeleted(cleanClientId)) {
         return {
           success: false,
@@ -136,8 +136,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       const rawTenants = localStorage.getItem('ngo_registered_tenants');
-      const registeredTenants = rawTenants ? JSON.parse(rawTenants) : [];
-      const tenant = registeredTenants.find(
+      const registeredTenants: any[] = rawTenants ? JSON.parse(rawTenants) : [];
+
+      // A. Try exact match on clientId, subdomain, id
+      let tenant = registeredTenants.find(
         (t: any) =>
           !isTenantDeleted(t.id) &&
           !isTenantDeleted(t.clientId) &&
@@ -145,6 +147,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             t.subdomain?.toUpperCase() === cleanClientId ||
             t.id?.toUpperCase() === cleanClientId)
       );
+
+      // B. Fuzzy letter confusion matching (e.g. 1GPS or IGPS instead of TGPS)
+      if (!tenant && cleanClientId.length >= 3) {
+        tenant = registeredTenants.find((t: any) => {
+          if (isTenantDeleted(t.id) || isTenantDeleted(t.clientId)) return false;
+          const codeA = (t.clientId || '').toUpperCase().replace(/^[TI1L]/, '');
+          const codeB = cleanClientId.replace(/^[TI1L]/, '');
+          return codeA && codeB && codeA === codeB;
+        });
+      }
+
+      // C. Reverse lookup by mobile or email if client ID was mistyped or missing
+      if (!tenant) {
+        const inputDigits = cleanIdentifier.replace(/\D/g, '');
+        tenant = registeredTenants.find((t: any) => {
+          if (isTenantDeleted(t.id) || isTenantDeleted(t.clientId)) return false;
+          const tEmail = (t.ownerEmail || '').toLowerCase();
+          const tMobile = (t.ownerMobile || '').replace(/\D/g, '');
+          if (tEmail && tEmail === cleanIdentifier) return true;
+          if (tMobile && inputDigits && (tMobile === inputDigits || tMobile.slice(-10) === inputDigits.slice(-10))) return true;
+          return false;
+        });
+      }
+
+      // If still not found and there is only 1 registered active tenant in the system, use it
+      if (!tenant) {
+        const activeList = registeredTenants.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId));
+        if (activeList.length === 1) {
+          tenant = activeList[0];
+        }
+      }
 
       const targetTenantId = tenant ? tenant.id : cleanClientId.toLowerCase();
       if (isTenantDeleted(targetTenantId)) {
@@ -155,12 +188,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 3. Check registered staff in this tenant
-      const staffList = JSON.parse(localStorage.getItem(`ngo_users_${targetTenantId}`) || '[]');
-      const matchedStaff = staffList.find(
-        (u: any) =>
-          u.email.toLowerCase() === cleanIdentifier ||
-          u.mobile.replace(/[^0-9]/g, '') === cleanIdentifier.replace(/[^0-9]/g, '')
-      );
+      let staffList: any[] = [];
+      try {
+        staffList = JSON.parse(localStorage.getItem(`ngo_users_${targetTenantId}`) || '[]');
+      } catch {}
+
+      const inputDigits = cleanIdentifier.replace(/\D/g, '');
+      const matchedStaff = Array.isArray(staffList)
+        ? staffList.find((u: any) => {
+            const uEmail = (u.email || '').toLowerCase();
+            const uMobile = (u.mobile || '').replace(/\D/g, '');
+            if (uEmail && uEmail === cleanIdentifier) return true;
+            if (uMobile && inputDigits && (uMobile === inputDigits || uMobile.slice(-10) === inputDigits.slice(-10))) return true;
+            return false;
+          })
+        : null;
 
       if (matchedStaff) {
         // Staff found
@@ -189,14 +231,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (tenant) {
         const ownerEmail = (tenant.ownerEmail || '').trim().toLowerCase();
         const ownerMobileDigits = (tenant.ownerMobile || '').replace(/\D/g, '');
-        const inputDigits = cleanIdentifier.replace(/\D/g, '');
 
         const isEmailMatch = ownerEmail && cleanIdentifier === ownerEmail;
-        const isMobileMatch = ownerMobileDigits && inputDigits && (
-          ownerMobileDigits === inputDigits ||
-          ownerMobileDigits.slice(-10) === inputDigits.slice(-10)
-        );
-        const isDirectorMatch = cleanIdentifier.includes('director') || cleanIdentifier === 'owner' || cleanIdentifier === 'admin';
+        const isMobileMatch =
+          ownerMobileDigits &&
+          inputDigits &&
+          (ownerMobileDigits === inputDigits ||
+            ownerMobileDigits.slice(-10) === inputDigits.slice(-10) ||
+            ownerMobileDigits.slice(-8) === inputDigits.slice(-8));
+        const isDirectorMatch =
+          cleanIdentifier.includes('director') ||
+          cleanIdentifier === 'owner' ||
+          cleanIdentifier === 'admin' ||
+          cleanIdentifier === (tenant.clientId || '').toLowerCase();
 
         if (isEmailMatch || isMobileMatch || isDirectorMatch) {
           // Check password
@@ -208,9 +255,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             '123456'
           ].filter(Boolean);
 
-          const staffOwner = staffList.find(
-            (u: any) => u.roleId === 'owner' || (u.email && u.email.toLowerCase() === ownerEmail)
-          );
+          const staffOwner = Array.isArray(staffList)
+            ? staffList.find((u: any) => u.roleId === 'owner' || (u.email && u.email.toLowerCase() === ownerEmail))
+            : null;
           if (staffOwner?.password) validPasswords.push(staffOwner.password);
           if (staffOwner?.defaultPassword) validPasswords.push(staffOwner.defaultPassword);
 
@@ -226,7 +273,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             tenantId: tenant.id,
             email: tenant.ownerEmail,
             mobile: tenant.ownerMobile || (staffOwner ? staffOwner.mobile : '01712-345678'),
-            displayName: { en: tenant.name.en, bn: tenant.name.bn },
+            displayName: {
+              en: tenant.name?.en || 'Executive Director',
+              bn: `${tenant.name?.bn || 'এনজিও'} (নির্বাহী পরিচালক)`
+            },
             roleId: 'owner',
             branchId: 'all',
             status: 'active',
@@ -246,6 +296,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         success: false,
         error: 'ভুল এনজিও আইডি, মোবাইল নম্বর বা পাসওয়ার্ড প্রদান করা হয়েছে।'
+      };
+    } catch (err: any) {
+      console.error('Login error:', err);
+      return {
+        success: false,
+        error: 'লগইন প্রক্রিয়াকরণে সমস্যা হয়েছে। অনুগ্রহ করে তথ্য পুনরায় পরীক্ষা করুন।'
       };
     } finally {
       setIsLoading(false);
@@ -303,14 +359,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginAsTenantMock = (mockRole: UserRole, tenantId: string) => {
+    let foundTenant: any = null;
+    try {
+      const raw = localStorage.getItem('ngo_registered_tenants');
+      const list = raw ? JSON.parse(raw) : [];
+      foundTenant = list.find(
+        (t: any) =>
+          !isTenantDeleted(t.id) &&
+          !isTenantDeleted(t.clientId) &&
+          (t.id === tenantId || t.clientId?.toUpperCase() === tenantId.toUpperCase() || t.subdomain?.toLowerCase() === tenantId.toLowerCase())
+      ) || list.find((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId));
+    } catch {}
+
+    const resolvedTenantId = foundTenant?.id || tenantId;
+    const orgBn = foundTenant?.name?.bn || 'এনজিও';
+    const orgEn = foundTenant?.name?.en || 'NGO';
+
+    let roleTitleBn = 'নির্বাহী পরিচালক';
+    let roleTitleEn = 'Executive Director';
+    if (mockRole === 'manager') {
+      roleTitleBn = 'শাখা ব্যবস্থাপক';
+      roleTitleEn = 'Branch Manager';
+    } else if (mockRole === 'field_officer') {
+      roleTitleBn = 'মাঠ কর্মকর্তা (ক্রেডিট অফিসার)';
+      roleTitleEn = 'Field Credit Officer';
+    }
+
     const tenantUser: UserProfile = {
-      uid: `user_${tenantId}_001`,
-      tenantId,
-      email: `${mockRole}@${tenantId}.org`,
-      mobile: '01812345678',
+      uid: `user_${resolvedTenantId}_${mockRole}`,
+      tenantId: resolvedTenantId,
+      email: foundTenant?.ownerEmail || `${mockRole}@${resolvedTenantId}.ngo`,
+      mobile: foundTenant?.ownerMobile || '01811544992',
       displayName: {
-        en: mockRole === 'field_officer' ? 'Md. Tariqul Islam (Field Officer)' : `${mockRole.toUpperCase()} User`,
-        bn: mockRole === 'field_officer' ? 'মো: তারিকুল ইসলাম (মাঠকর্মী)' : 'এনজিও ইউজার'
+        en: `${orgEn} (${roleTitleEn})`,
+        bn: `${orgBn} (${roleTitleBn})`
       },
       roleId: mockRole,
       branchId: 'all',
@@ -323,7 +405,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('ngo_demo_user', JSON.stringify(tenantUser));
     localStorage.setItem('ngo_is_superadmin', 'false');
     localStorage.setItem('ngo_user_role', mockRole);
-    localStorage.setItem('ngo_active_tenant_v1', tenantId);
+    localStorage.setItem('ngo_active_tenant_v1', resolvedTenantId);
   };
 
   const can = (permission: string): boolean => {

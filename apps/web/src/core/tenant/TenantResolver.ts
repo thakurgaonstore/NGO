@@ -21,6 +21,16 @@ export const DEFAULT_DEMO_TENANTS: Array<{
   name: { en: string; bn: string };
 }> = [
   {
+    id: 'tgps',
+    clientId: 'TGPS',
+    subdomain: 'tgps',
+    domain: 'tgps.ngoerp.xyz',
+    name: {
+      en: 'Thakurgaon Green Practice Society (TGPS)',
+      bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
+    }
+  },
+  {
     id: 'sheba-manobik',
     clientId: 'SHEBA',
     subdomain: 'sheba',
@@ -274,31 +284,30 @@ export class TenantResolver {
             (t: any) =>
               t.id?.toLowerCase() === lowerSlug ||
               t.clientId?.toLowerCase() === lowerSlug ||
-              t.subdomain?.toLowerCase() === lowerSlug
+              t.subdomain?.toLowerCase() === lowerSlug ||
+              ((lowerSlug === '1gps' || lowerSlug === 'tgps') &&
+                (t.clientId?.toUpperCase() === 'TGPS' || t.id?.toLowerCase() === 'tgps'))
           );
           if (found && !isTenantDeleted(found.id) && !isTenantDeleted(found.clientId) && !isTenantDeleted(found.subdomain)) {
             return { id: found.id, clientId: found.clientId };
           }
-          // If registered_tenants exists, do NOT fall back to DEFAULT_DEMO_TENANTS!
-          return null;
         }
       }
     } catch {}
 
-    // Only if never initialized at all and not deleted:
-    if (!localStorage.getItem('ngo_has_seeded_initial')) {
-      const fallback = DEFAULT_DEMO_TENANTS.find(
-        (t) =>
-          !isTenantDeleted(t.id) &&
-          !isTenantDeleted(t.clientId) &&
-          !isTenantDeleted(t.subdomain) &&
-          (t.id.toLowerCase() === lowerSlug ||
-            t.clientId.toLowerCase() === lowerSlug ||
-            t.subdomain.toLowerCase() === lowerSlug)
-      );
-      if (fallback) {
-        return { id: fallback.id, clientId: fallback.clientId };
-      }
+    // Fallback to DEFAULT_DEMO_TENANTS if not found or not seeded
+    const fallback = DEFAULT_DEMO_TENANTS.find(
+      (t) =>
+        !isTenantDeleted(t.id) &&
+        !isTenantDeleted(t.clientId) &&
+        !isTenantDeleted(t.subdomain) &&
+        (t.id.toLowerCase() === lowerSlug ||
+          t.clientId.toLowerCase() === lowerSlug ||
+          t.subdomain.toLowerCase() === lowerSlug ||
+          ((lowerSlug === '1gps' || lowerSlug === 'tgps') && t.clientId === 'TGPS'))
+    );
+    if (fallback) {
+      return { id: fallback.id, clientId: fallback.clientId };
     }
     return null;
   }
