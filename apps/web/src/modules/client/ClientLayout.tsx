@@ -41,8 +41,10 @@ import {
   Clock,
   Layers,
   SlidersHorizontal,
-  Home
+  Home,
+  Database
 } from 'lucide-react';
+import { DataBackupModal } from '../backup/DataBackupModal';
 
 const ICON_MAP: Record<string, any> = {
   LayoutDashboard,
@@ -95,6 +97,7 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [mobileSearchQuery, setMobileSearchQuery] = useState<string>('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+  const [showBackupModal, setShowBackupModal] = useState<boolean>(false);
 
   // 60-Minute Inactivity Auto-Logout Hook
   useInactivityTimer({
@@ -228,28 +231,28 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
 
       <div className="flex-1 flex flex-col md:flex-row">
         {/* ======================================================== */}
-        {/* Desktop Sidebar: Scroll-Free, Categorized, Premium Design */}
+        {/* Desktop Sidebar: Scroll-Free, Non-Dropdown Categorized    */}
         {/* ======================================================== */}
-        <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card/75 backdrop-blur-md justify-between shrink-0 h-screen sticky top-0 overflow-hidden">
+        <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card/85 backdrop-blur-md justify-between shrink-0 h-screen sticky top-0 overflow-hidden shadow-xs">
           {/* Top Section: Brand Header & Categorized Navigation */}
-          <div className="flex flex-col flex-1 min-h-0 p-3.5">
+          <div className="flex flex-col flex-1 min-h-0 p-3 pb-1">
             {/* Tenant Brand Identity */}
-            <div className="flex items-center gap-3 px-1.5 py-1 mb-3 shrink-0 border-b border-border/60 pb-3">
+            <div className="flex items-center gap-2.5 px-1 py-1 mb-2 shrink-0 border-b border-border/70 pb-2.5">
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shrink-0 transition-transform hover:scale-105"
+                className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-sm shrink-0 transition-transform hover:scale-105"
                 style={{ backgroundColor: settings?.primaryColor || 'hsl(var(--primary))' }}
               >
                 {tenant?.clientId?.slice(0, 2) || 'NG'}
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="font-bold text-xs leading-snug text-foreground line-clamp-1" title={isBangla ? tenant?.name.bn : tenant?.name.en}>
+                <h1 className="font-bold text-xs leading-tight text-foreground truncate" title={isBangla ? tenant?.name.bn : tenant?.name.en}>
                   {isBangla ? tenant?.name.bn : tenant?.name.en}
                 </h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-muted text-muted-foreground border border-border">
+                  <span className="px-1.5 py-0.2 rounded text-[9.5px] font-mono font-bold bg-muted text-muted-foreground border border-border">
                     {tenant?.clientId}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-semibold">
+                  <span className="inline-flex items-center gap-1 text-[9.5px] text-emerald-600 font-semibold">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     {isBangla ? 'সক্রিয়' : 'Live'}
                   </span>
@@ -257,130 +260,118 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
               </div>
             </div>
 
-            {/* Scroll-Free Categorized Accordion Navigation */}
-            <nav className="flex-1 overflow-y-auto space-y-1 pr-0.5 selection:bg-transparent">
+            {/* Scroll-Free Non-Dropdown Categorized Navigation */}
+            <nav className="flex-1 overflow-y-auto space-y-1.5 pr-0.5 selection:bg-transparent">
               {categories.map((cat) => {
-                const CatIcon = cat.icon;
                 const catModules = enabledModulesList.filter((m) => cat.moduleIds.includes(m.id));
                 if (catModules.length === 0) return null;
 
-                const isExpanded = !!expandedCats[cat.id];
-                const hasActiveChild = cat.moduleIds.includes(currentModule);
-
                 return (
-                  <div key={cat.id} className="rounded-xl border border-border/40 bg-background/50 overflow-hidden">
-                    {/* Category Header Accordion Trigger */}
-                    <button
-                      type="button"
-                      onClick={() => toggleCategory(cat.id)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 text-[11px] font-bold transition-colors ${
-                        hasActiveChild
-                          ? 'text-primary bg-primary/5'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <CatIcon className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <div key={cat.id} className="space-y-0.5">
+                    {/* Clean Category Header Label (Static, Non-Dropdown) */}
+                    <div className="px-1.5 pt-1 pb-0.5 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/80">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         <span>{isBangla ? cat.name.bn : cat.name.en}</span>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-muted-foreground/80 font-normal">
-                          {catModules.length}
-                        </span>
-                        {isExpanded ? (
-                          <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                        ) : (
-                          <ChevronRight className="w-3 h-3 text-muted-foreground" />
-                        )}
-                      </div>
-                    </button>
+                      <span className="text-[9px] font-mono font-bold px-1.5 py-0.1 rounded bg-muted/60 text-muted-foreground">
+                        {catModules.length}
+                      </span>
+                    </div>
 
-                    {/* Category Child Items */}
-                    {isExpanded && (
-                      <div className="p-1 space-y-0.5 bg-card/40 border-t border-border/30">
-                        {catModules.map((mod) => {
-                          const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
-                          const isActive = currentModule === mod.id;
-                          const unreadBadge = mod.id === 'website' ? getTenantUnreadCount(tenant?.id) : 0;
+                    {/* Category Modules - Compact & Scroll-Free */}
+                    <div className="space-y-0.5">
+                      {catModules.map((mod) => {
+                        const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
+                        const isActive = currentModule === mod.id;
+                        const unreadBadge = mod.id === 'website' ? getTenantUnreadCount(tenant?.id) : 0;
 
-                          return (
-                            <button
-                              key={mod.id}
-                              onClick={() => onModuleChange(mod.id)}
-                              className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                                isActive
-                                  ? 'bg-primary text-primary-foreground shadow-sm'
-                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <Icon className="w-3.5 h-3.5 shrink-0" />
-                                <span className="truncate leading-none">{isBangla ? mod.name.bn : mod.name.en}</span>
-                              </div>
-                              {unreadBadge > 0 && (
-                                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-rose-600 text-white animate-pulse">
-                                  {unreadBadge}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                        return (
+                          <button
+                            key={mod.id}
+                            onClick={() => onModuleChange(mod.id)}
+                            className={`w-full flex items-center justify-between px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all group ${
+                              isActive
+                                ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                                : 'text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform group-hover:scale-105 ${
+                                isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-600'
+                              }`} />
+                              <span className="truncate leading-none">{isBangla ? mod.name.bn : mod.name.en}</span>
+                            </div>
+                            {unreadBadge > 0 && (
+                              <span className="px-1.5 py-0.2 rounded-full text-[9px] font-extrabold bg-rose-600 text-white animate-pulse">
+                                {unreadBadge}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
             </nav>
           </div>
 
-          {/* Bottom Section: Profile Card, Auto-Logout Shield & Beautiful Logout */}
-          <div className="p-3 border-t border-border bg-card/90 space-y-2 shrink-0">
+          {/* Bottom Section: Profile, Backup Button, Inactivity Indicator & Explicit "লগআউট" Button */}
+          <div className="p-3 border-t border-border bg-card/95 space-y-2 shrink-0">
+            {/* Quick Full Backup & Restore Trigger */}
+            <button
+              type="button"
+              onClick={() => setShowBackupModal(true)}
+              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/90 rounded-lg hover:bg-emerald-100 transition-colors shadow-2xs"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-600" />
+              <span>{isBangla ? 'ডাটা ব্যাকআপ ও রিস্টোর' : 'Data Backup & Restore'}</span>
+            </button>
+
             {/* User Profile Card with Avatar */}
-            <div className="flex items-center justify-between p-2 rounded-xl bg-muted/40 border border-border/60">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20">
+            <div className="flex items-center justify-between p-1.5 rounded-lg bg-muted/40 border border-border/60">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs shrink-0 border border-primary/20">
                   {currentUser?.displayName?.bn?.slice(0, 2) || currentUser?.displayName?.en?.slice(0, 2) || 'OP'}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-bold text-xs truncate text-foreground leading-tight">
+                  <div className="font-bold text-[11px] truncate text-foreground leading-tight">
                     {currentUser?.displayName?.bn || currentUser?.displayName?.en || 'নির্বাহী পরিচালক'}
                   </div>
-                  <div className="text-[10px] text-muted-foreground truncate flex items-center gap-1">
+                  <div className="text-[9.5px] text-muted-foreground truncate flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                     <span>{isBangla ? 'মালিক / পরিচালক' : role}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Clean Logout Trigger Button */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowLogoutConfirm(true)}
-                className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 transition-colors"
-                title={isBangla ? 'লগআউট করুন' : 'Sign Out'}
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+              {/* Inactivity Auto-Lock Shield Indicator */}
+              <div className="flex items-center gap-1 text-[9px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60" title="৬০ মিনিট ইনএকটিভ থাকলে অটোমেটিক লগআউট হবে">
+                <Clock className="w-2.5 h-2.5" />
+                <span>৬০মি</span>
+              </div>
             </div>
 
-            {/* Inactivity Auto-Lock Shield Indicator */}
-            <div className="flex items-center justify-between px-1 text-[10px] text-muted-foreground font-medium">
-              <span className="flex items-center gap-1.5">
-                <Clock className="w-3 h-3 text-emerald-600" />
-                <span>{isBangla ? '৬০ মিনিট ইনএকটিভ লক' : '60m Inactivity Guard'}</span>
-              </span>
-              <span className="text-emerald-600 font-semibold">{isBangla ? 'সক্রিয়' : 'Active'}</span>
-            </div>
-
-            {/* Switch to Super Admin Portal if authorized */}
+            {/* Dedicated Explicit "লগআউট" Button */}
             <Button
               variant="outline"
               size="sm"
-              onClick={onSwitchToSuperAdmin}
-              className="w-full text-xs justify-start h-8 text-muted-foreground hover:text-foreground border-border/80"
+              onClick={() => setShowLogoutConfirm(true)}
+              className="w-full h-8 text-xs font-bold text-rose-600 border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-rose-900/50 dark:hover:bg-rose-950/40 flex items-center justify-center gap-1.5 rounded-lg transition-all shadow-2xs"
             >
-              <ArrowLeft className="w-3.5 h-3.5 mr-2 shrink-0" />
+              <LogOut className="w-3.5 h-3.5 text-rose-600" />
+              <span>{isBangla ? 'লগআউট' : 'Sign Out'}</span>
+            </Button>
+
+            {/* Switch to Super Admin Portal if authorized */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSwitchToSuperAdmin}
+              className="w-full text-[10.5px] justify-start h-7 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-3 h-3 mr-1.5 shrink-0" />
               <span className="truncate">{isBangla ? 'সুপার এডমিন পোর্টাল' : 'Super Admin Portal'}</span>
             </Button>
           </div>
@@ -676,6 +667,12 @@ export const ClientLayout: React.FC<ClientLayoutProps> = ({
           </div>
         </div>
       </Dialog>
+
+      {/* Full Tenant Data Backup & Restore Modal */}
+      <DataBackupModal
+        isOpen={showBackupModal}
+        onClose={() => setShowBackupModal(false)}
+      />
     </div>
   );
 };
