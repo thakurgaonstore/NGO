@@ -121,7 +121,7 @@ export const FieldOpsView: React.FC = () => {
     // Enqueue to offline outbox with UUID idempotency key
     SyncOutbox.enqueue({
       id: `sub_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      tenantId: tenant?.id || 'demo-jagorani',
+      tenantId: tenant?.id || 'sheba-manobik',
       type: 'form_submission',
       payload: {
         formId: activeFormToRun.id,

@@ -47,11 +47,11 @@ const DEMO_PLATFORM_INQUIRIES: WebsiteInquiry[] = [
 ];
 
 const DEMO_TENANT_INQUIRIES: Record<string, WebsiteInquiry[]> = {
-  'demo-jagorani': [
+  'sheba-manobik': [
     {
       id: 'inq-t-1',
       source: 'tenant',
-      tenantId: 'demo-jagorani',
+      tenantId: 'sheba-manobik',
       senderName: 'মোছা: রহিমা বেগম',
       senderPhone: '01911-223344',
       organization: 'সাভার মহিলা সমিতি',
@@ -63,7 +63,7 @@ const DEMO_TENANT_INQUIRIES: Record<string, WebsiteInquiry[]> = {
     {
       id: 'inq-t-2',
       source: 'tenant',
-      tenantId: 'demo-jagorani',
+      tenantId: 'sheba-manobik',
       senderName: 'আনোয়ার হোসেন',
       senderPhone: '01711-998877',
       senderEmail: 'anwar.h@gmail.com',
@@ -185,8 +185,8 @@ export const getPlatformUnreadCount = (): number => {
 // 2. CLIENT NGO TENANT INQUIRIES
 // ==========================================
 
-export const getTenantInquiries = (tenantId: string = 'demo-jagorani'): WebsiteInquiry[] => {
-  const effectiveTenantId = tenantId || 'demo-jagorani';
+export const getTenantInquiries = (tenantId: string = 'sheba-manobik'): WebsiteInquiry[] => {
+  const effectiveTenantId = tenantId || 'sheba-manobik';
   const key = `${TENANT_INQUIRIES_PREFIX}${effectiveTenantId}`;
   try {
     const raw = localStorage.getItem(key);
@@ -195,16 +195,16 @@ export const getTenantInquiries = (tenantId: string = 'demo-jagorani'): WebsiteI
     }
   } catch {}
 
-  const defaults = DEMO_TENANT_INQUIRIES[effectiveTenantId] || DEMO_TENANT_INQUIRIES['demo-jagorani'] || [];
+  const defaults = DEMO_TENANT_INQUIRIES[effectiveTenantId] || DEMO_TENANT_INQUIRIES['sheba-manobik'] || [];
   localStorage.setItem(key, JSON.stringify(defaults));
   return defaults;
 };
 
 export const saveTenantInquiry = (
-  tenantId: string = 'demo-jagorani',
+  tenantId: string = 'sheba-manobik',
   data: Omit<WebsiteInquiry, 'id' | 'source' | 'status' | 'createdAt'>
 ): WebsiteInquiry => {
-  const effectiveTenantId = tenantId || 'demo-jagorani';
+  const effectiveTenantId = tenantId || 'sheba-manobik';
   const key = `${TENANT_INQUIRIES_PREFIX}${effectiveTenantId}`;
   const newInquiry: WebsiteInquiry = {
     ...data,
@@ -244,9 +244,9 @@ export const saveTenantInquiry = (
 };
 
 export const fetchTenantInquiriesFromCloud = async (
-  tenantId: string = 'demo-jagorani'
+  tenantId: string = 'sheba-manobik'
 ): Promise<WebsiteInquiry[]> => {
-  const effectiveTenantId = tenantId || 'demo-jagorani';
+  const effectiveTenantId = tenantId || 'sheba-manobik';
   const key = `${TENANT_INQUIRIES_PREFIX}${effectiveTenantId}`;
   try {
     const { firestore } = getOrCreateFirebaseInstance();
@@ -275,31 +275,31 @@ export const fetchTenantInquiriesFromCloud = async (
 };
 
 export const updateTenantInquiryStatus = (
-  tenantId: string = 'demo-jagorani',
+  tenantId: string = 'sheba-manobik',
   id: string,
   status: 'unread' | 'read' | 'archived'
 ) => {
-  const effectiveTenantId = tenantId || 'demo-jagorani';
+  const effectiveTenantId = tenantId || 'sheba-manobik';
   const key = `${TENANT_INQUIRIES_PREFIX}${effectiveTenantId}`;
   const existing = getTenantInquiries(effectiveTenantId);
   const updated = existing.map((i) => (i.id === id ? { ...i, status } : i));
   localStorage.setItem(key, JSON.stringify(updated));
 };
 
-export const markTenantInquiryAsRead = (tenantId: string = 'demo-jagorani', id: string) => {
+export const markTenantInquiryAsRead = (tenantId: string = 'sheba-manobik', id: string) => {
   updateTenantInquiryStatus(tenantId, id, 'read');
 };
 
-export const deleteTenantInquiry = (tenantId: string = 'demo-jagorani', id: string) => {
-  const effectiveTenantId = tenantId || 'demo-jagorani';
+export const deleteTenantInquiry = (tenantId: string = 'sheba-manobik', id: string) => {
+  const effectiveTenantId = tenantId || 'sheba-manobik';
   const key = `${TENANT_INQUIRIES_PREFIX}${effectiveTenantId}`;
   const existing = getTenantInquiries(effectiveTenantId);
   const updated = existing.filter((i) => i.id !== id);
   localStorage.setItem(key, JSON.stringify(updated));
 };
 
-export const getTenantUnreadCount = (tenantId: string = 'demo-jagorani'): number => {
-  const effectiveTenantId = tenantId || 'demo-jagorani';
+export const getTenantUnreadCount = (tenantId: string = 'sheba-manobik'): number => {
+  const effectiveTenantId = tenantId || 'sheba-manobik';
   const list = getTenantInquiries(effectiveTenantId);
   return list.filter((i) => i.status === 'unread').length;
 };

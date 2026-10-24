@@ -85,7 +85,7 @@ const INITIAL_STAFF: FullStaffProfile[] = [
   {
     uid: 'u-01',
     code: 'EMP-2026-001',
-    tenantId: 'demo-jagorani',
+    tenantId: 'sheba-manobik',
     email: 'director@jagorani.org',
     mobile: '01712-345678',
     nid: '19752691234567890',
@@ -121,7 +121,7 @@ const INITIAL_STAFF: FullStaffProfile[] = [
   {
     uid: 'u-02',
     code: 'EMP-2026-002',
-    tenantId: 'demo-jagorani',
+    tenantId: 'sheba-manobik',
     email: 'manager@jagorani.org',
     mobile: '01819-234567',
     nid: '19822693456781234',
@@ -157,7 +157,7 @@ const INITIAL_STAFF: FullStaffProfile[] = [
   {
     uid: 'u-03',
     code: 'EMP-2026-003',
-    tenantId: 'demo-jagorani',
+    tenantId: 'sheba-manobik',
     email: 'officer@jagorani.org',
     mobile: '01911-889900',
     nid: '19902697890123456',
@@ -193,7 +193,7 @@ const INITIAL_STAFF: FullStaffProfile[] = [
   {
     uid: 'u-04',
     code: 'EMP-2026-004',
-    tenantId: 'demo-jagorani',
+    tenantId: 'sheba-manobik',
     email: 'accounts@jagorani.org',
     mobile: '01611-334455',
     nid: '19922699876543210',
@@ -435,7 +435,7 @@ export const UsersListView: React.FC = () => {
       const newStaff: FullStaffProfile = {
         uid: `u-${Date.now()}`,
         code,
-        tenantId: tenant?.id || 'demo-jagorani',
+        tenantId: tenant?.id || 'sheba-manobik',
         displayName: { en: nameEn || nameBn, bn: nameBn || nameEn },
         mobile,
         email: email || `${mobile.replace(/[^0-9]/g, '')}@staff.ngo`,
@@ -461,14 +461,14 @@ export const UsersListView: React.FC = () => {
       localStorage.setItem(`ngo_staff_full_${tenant?.id}`, JSON.stringify(updated));
 
       // Also register staff in auth creds
-      const staffCreds = JSON.parse(localStorage.getItem(`ngo_staff_creds_${tenant?.clientId || 'JAGORANI'}`) || '{}');
+      const staffCreds = JSON.parse(localStorage.getItem(`ngo_staff_creds_${tenant?.clientId || 'SHEBA'}`) || '{}');
       staffCreds[mobile] = {
         password: defaultPassword,
         role: roleId,
         mustChangePassword: true,
         name: nameBn || nameEn
       };
-      localStorage.setItem(`ngo_staff_creds_${tenant?.clientId || 'JAGORANI'}`, JSON.stringify(staffCreds));
+      localStorage.setItem(`ngo_staff_creds_${tenant?.clientId || 'SHEBA'}`, JSON.stringify(staffCreds));
 
       showNotify(`নতুন কর্মী "${nameBn || nameEn}" সফলভাবে যুক্ত হয়েছে! ডিফল্ট পাসওয়ার্ড: ${defaultPassword}`);
     }

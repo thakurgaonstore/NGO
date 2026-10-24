@@ -511,7 +511,7 @@ export const TenantsList: React.FC<TenantsListProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground">{isBangla ? 'কাস্টম ডোমেইন (ঐচ্ছিক)' : 'Custom Domain (Optional)'}</label>
-                <Input value={editDomain} onChange={(e) => setEditDomain(e.target.value)} placeholder="e.g. www.jagoranibd.org" />
+                <Input value={editDomain} onChange={(e) => setEditDomain(e.target.value)} placeholder="e.g. www.sheba-bd.org" />
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground">{isBangla ? 'সাবস্ক্রিপশন প্যাকেজ' : 'Plan'}</label>

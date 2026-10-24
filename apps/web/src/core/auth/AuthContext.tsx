@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const isSA = !!tokenResult.claims.isSuperAdmin || user.email === 'superadmin@ngoerp.xyz';
           setIsSuperAdmin(isSA);
 
-          const tenantId = (tokenResult.claims.tenantId as string) || 'demo-jagorani';
+          const tenantId = (tokenResult.claims.tenantId as string) || 'sheba-manobik';
           const userRole = (tokenResult.claims.role as UserRole) || 'owner';
           setRole(userRole);
 
@@ -241,16 +241,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           localStorage.setItem('ngo_active_tenant_v1', tenant.id);
           return { success: true };
         }
-      }
-
-      // Fallback for default demo Jagorani (only if not deleted)
-      if (
-        !isTenantDeleted('demo-jagorani') &&
-        !isTenantDeleted('JAGORANI') &&
-        (cleanClientId === 'JAGORANI' || cleanClientId === 'DEMO-JAGORANI')
-      ) {
-        loginAsTenantMock('owner', 'demo-jagorani');
-        return { success: true };
       }
 
       return {

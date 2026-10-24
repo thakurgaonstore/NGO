@@ -1148,11 +1148,11 @@ export const HrPayrollView: React.FC = () => {
               {/* Official Header */}
               <div className="text-center border-b pb-3 space-y-1">
                 <h2 className="text-base font-bold tracking-tight text-gray-900 uppercase">
-                  {settings?.orgName.en || 'JAGORANI DEVELOPMENT FOUNDATION'}
+                  {settings?.orgName.en || tenant?.name?.en || 'NGO ERP ORGANIZATION'}
                 </h2>
-                <p className="text-xs text-gray-700 font-semibold">{settings?.orgName.bn || 'জাগরণী উন্নয়ন ফাউন্ডেশন'}</p>
+                <p className="text-xs text-gray-700 font-semibold">{settings?.orgName.bn || tenant?.name?.bn || 'এনজিও ইআরপি সংস্থা'}</p>
                 <p className="text-[10px] text-gray-500">
-                  রেজিস্টার্ড প্রধান কার্যালয়: {settings?.address.bn || 'বাড়ি ১৪, রোড ৫, ধানমন্ডি, ঢাকা'} | MRA রেজিঃ {settings?.regNumber || 'NGO-DH-2024-892'}
+                  রেজিস্টার্ড প্রধান কার্যালয়: {settings?.address.bn || 'ঢাকা, বাংলাদেশ'} | MRA রেজিঃ {settings?.regNumber || 'NGO-REG-2026'}
                 </p>
                 <div className="inline-block mt-1 px-4 py-1 bg-gray-100 rounded-md font-bold text-xs border border-gray-300">
                   {isBangla ? `মাসিক বেতন ও ভাতা পরিশোধ স্লিপ — ${payslipData.month}` : `MONTHLY SALARY PAYSLIP - ${payslipData.month}`}
@@ -1529,11 +1529,11 @@ export const HrPayrollView: React.FC = () => {
               {/* Institutional Letterhead */}
               <div className="text-center border-b-2 border-gray-900 pb-4 space-y-1">
                 <h1 className="text-lg font-bold tracking-wider text-gray-950 uppercase">
-                  {settings?.orgName.en || 'JAGORANI DEVELOPMENT FOUNDATION'}
+                  {settings?.orgName.en || tenant?.name?.en || 'NGO ERP ORGANIZATION'}
                 </h1>
-                <p className="text-xs font-semibold text-gray-800">{settings?.orgName.bn || 'জাগরণী উন্নয়ন ফাউন্ডেশন'}</p>
+                <p className="text-xs font-semibold text-gray-800">{settings?.orgName.bn || tenant?.name?.bn || 'এনজিও ইআরপি সংস্থা'}</p>
                 <p className="text-[10px] text-gray-600">
-                  প্রধান কার্যালয়: {settings?.address.bn || 'বাড়ি ১৪, রোড ৫, ধানমন্ডি, ঢাকা-১২০৫'} | ফোন: {settings?.phone || '০১৭১১-২২৩৩৪৪'} | রেজিঃ নং: {settings?.regNumber || 'NGO-DH-2024-892'}
+                  প্রধান কার্যালয়: {settings?.address.bn || 'ঢাকা, বাংলাদেশ'} | ফোন: {settings?.phone || '০১৭০০-০০০০০০'} | রেজিঃ নং: {settings?.regNumber || 'NGO-REG-2026'}
                 </p>
               </div>
 

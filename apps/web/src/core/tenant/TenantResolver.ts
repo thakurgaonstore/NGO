@@ -21,16 +21,6 @@ export const DEFAULT_DEMO_TENANTS: Array<{
   name: { en: string; bn: string };
 }> = [
   {
-    id: 'demo-jagorani',
-    clientId: 'JAGORANI',
-    subdomain: 'jagorani',
-    domain: 'www.jagoranibd.org',
-    name: {
-      en: 'Jagorani Development Foundation',
-      bn: 'জাগরণী উন্নয়ন ফাউন্ডেশন'
-    }
-  },
-  {
     id: 'sheba-manobik',
     clientId: 'SHEBA',
     subdomain: 'sheba',
@@ -154,7 +144,7 @@ export class TenantResolver {
     // 4. Query parameter (?tenant=T1001 or ?tenant=jagorani or ?clientId=jagorani)
     const tenantParam = url.searchParams.get('tenant') || url.searchParams.get('clientId');
     if (tenantParam) {
-      if (isTenantDeleted(tenantParam)) {
+      if (isTenantDeleted(tenantParam) || isTenantDeleted(`demo-${tenantParam}`)) {
         return {
           tenantId: null,
           clientId: null,
@@ -186,12 +176,12 @@ export class TenantResolver {
       }
     }
 
-    // 5. Path-based Client routing on shared platform: domain/:clientID (e.g., /jagorani, /JAGORANI, /sheba)
+    // 5. Path-based Client routing on shared platform: domain/:clientID (e.g., /sheba, /alok)
     if (firstSegment && !this.RESERVED_PATHS.includes(firstSegment)) {
-      if (isTenantDeleted(firstSegment)) {
+      if (isTenantDeleted(firstSegment) || isTenantDeleted(`demo-${firstSegment}`)) {
         return {
           tenantId: null,
-          clientId: null,
+          clientId: firstSegment,
           source: 'path',
           isSuperAdminPortal: false,
           isCustomDomainOrSubdomain: false,
@@ -219,6 +209,20 @@ export class TenantResolver {
           activePath: pathname
         };
       }
+
+      // If path segment is not a registered active tenant, treat as deleted / not found
+      return {
+        tenantId: null,
+        clientId: firstSegment,
+        source: 'path',
+        isSuperAdminPortal: false,
+        isCustomDomainOrSubdomain: false,
+        isPublicLanding: false,
+        isPlatformHome: false,
+        isTenantExplicitLogin: false,
+        isTenantDeleted: true,
+        activePath: pathname
+      };
     }
 
     // 6. Explicit Generic Login (/cerp or /login) on Main Platform
@@ -257,7 +261,7 @@ export class TenantResolver {
   public static findRegisteredTenant(slug: string): { id: string; clientId: string } | null {
     if (!slug) return null;
     const lowerSlug = slug.toLowerCase();
-    if (isTenantDeleted(lowerSlug)) {
+    if (isTenantDeleted(lowerSlug) || isTenantDeleted(`demo-${lowerSlug}`)) {
       return null;
     }
 

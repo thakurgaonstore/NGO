@@ -37,10 +37,12 @@ import {
   Award,
   BookOpen,
   DollarSign,
-  AlertCircle
+  AlertCircle,
+  Database
 } from 'lucide-react';
 import { saveTenantInquiry } from '../../core/inquiry/inquiryService';
 import { SimpleCaptcha } from '../../components/shared/SimpleCaptcha';
+import { isTenantDeleted } from '../../core/tenant/tenantCleanupService';
 
 interface PublicLandingPageProps {
   tenantId?: string;
@@ -49,10 +51,44 @@ interface PublicLandingPageProps {
 }
 
 export const PublicLandingPage: React.FC<PublicLandingPageProps> = ({
-  tenantId = 'demo-jagorani',
+  tenantId = 'sheba-manobik',
   onNavigateToLogin,
   onNavigateToErp
 }) => {
+  if (!tenantId || isTenantDeleted(tenantId)) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4 shadow-sm border border-rose-200">
+          <Database className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">
+          এনজিওটি খুঁজে পাওয়া যায়নি বা মুছে ফেলা হয়েছে
+        </h2>
+        <p className="text-sm text-slate-600 max-w-md mb-6 leading-relaxed">
+          এই এনজিও অ্যাকাউন্টটি বর্তমানে সিস্টেমে বিদ্যমান নেই অথবা সুপার এডমিন কর্তৃক স্থায়ীভাবে ডিলিট করা হয়েছে।
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={() => {
+              window.location.href = '/';
+            }}
+            className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow hover:bg-emerald-700 transition-all"
+          >
+            ← মূল প্ল্যাটফর্ম হোমপেজ
+          </button>
+          <button
+            onClick={() => {
+              window.location.href = '/mahinerp';
+            }}
+            className="px-5 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-100 transition-all shadow-sm"
+          >
+            সুপার এডমিন পোর্টাল
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const [config, setConfig] = useState<NgoWebsiteConfig>(() => getStoredWebsiteConfig(tenantId));
   const [isBangla, setIsBangla] = useState<boolean>(true);
 

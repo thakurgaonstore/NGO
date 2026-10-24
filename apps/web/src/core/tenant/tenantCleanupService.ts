@@ -8,14 +8,28 @@ export interface DeleteTenantProgress {
 }
 
 /**
+ * Permanently blacklisted tenant identifiers (e.g. deleted default demos such as Jagorani)
+ */
+export const PERMANENT_GLOBAL_BLACKLIST: string[] = [
+  'demo-jagorani',
+  'jagorani',
+  'jagorani-development-foundation',
+  'jagoranibd.org',
+  'www.jagoranibd.org',
+  'jagorani.org',
+  'www.jagorani.org'
+];
+
+/**
  * Returns list of tenant IDs / client codes / subdomains that were permanently deleted.
  */
 export function getDeletedTenantIds(): string[] {
   try {
     const raw = localStorage.getItem('ngo_deleted_tenant_ids');
-    return raw ? JSON.parse(raw) : [];
+    const stored: string[] = raw ? JSON.parse(raw) : [];
+    return Array.from(new Set([...PERMANENT_GLOBAL_BLACKLIST, ...stored.map((s) => s.trim().toLowerCase())]));
   } catch {
-    return [];
+    return [...PERMANENT_GLOBAL_BLACKLIST];
   }
 }
 
@@ -24,9 +38,12 @@ export function getDeletedTenantIds(): string[] {
  */
 export function isTenantDeleted(idOrSlug?: string | null): boolean {
   if (!idOrSlug) return false;
-  const clean = idOrSlug.trim().toLowerCase();
+  const clean = idOrSlug.trim().toLowerCase().replace(/^www\./, '');
   const deleted = getDeletedTenantIds();
-  return deleted.some((d) => d.toLowerCase() === clean);
+  return deleted.some((d) => {
+    const cleanD = d.toLowerCase().replace(/^www\./, '');
+    return cleanD === clean || clean === `demo-${cleanD}` || cleanD === `demo-${clean}`;
+  });
 }
 
 /**
@@ -53,6 +70,75 @@ export function markTenantAsDeleted(identifiers: string[]) {
     } catch {}
   } catch (err) {
     console.warn('Failed to mark tenant as deleted:', err);
+  }
+}
+
+/**
+ * Automatically purges any lingering traces of blacklisted or deleted tenants from localStorage & sessionStorage.
+ */
+export function purgeDeletedTenantTraces() {
+  try {
+    const deletedList = getDeletedTenantIds();
+
+    // 1. Purge registered list
+    const rawSaved = localStorage.getItem('ngo_registered_tenants');
+    if (rawSaved) {
+      const list = JSON.parse(rawSaved);
+      if (Array.isArray(list)) {
+        const filtered = list.filter(
+          (t: any) =>
+            !isTenantDeleted(t.id) &&
+            !isTenantDeleted(t.clientId) &&
+            !isTenantDeleted(t.subdomain)
+        );
+        if (filtered.length !== list.length) {
+          localStorage.setItem('ngo_registered_tenants', JSON.stringify(filtered));
+        }
+      }
+    }
+
+    // 2. Purge active tenant if deleted
+    const active = localStorage.getItem('ngo_active_tenant_v1');
+    if (active && isTenantDeleted(active)) {
+      localStorage.removeItem('ngo_active_tenant_v1');
+    }
+
+    // 3. Purge impersonation if deleted
+    const imp = sessionStorage.getItem('ngo_impersonating_tenant_id');
+    if (imp && isTenantDeleted(imp)) {
+      sessionStorage.removeItem('ngo_impersonating_tenant_id');
+    }
+
+    // 4. Purge directory cache
+    const dirRaw = localStorage.getItem('ngo_tenant_directory_cache');
+    if (dirRaw) {
+      const dir = JSON.parse(dirRaw);
+      let changed = false;
+      for (const k of Object.keys(dir)) {
+        if (isTenantDeleted(dir[k])) {
+          delete dir[k];
+          changed = true;
+        }
+      }
+      if (changed) {
+        localStorage.setItem('ngo_tenant_directory_cache', JSON.stringify(dir));
+      }
+    }
+
+    // 5. Purge specific keys containing deleted IDs
+    for (const d of deletedList) {
+      const clean = d.toLowerCase();
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.toLowerCase().includes(clean) || (clean.startsWith('demo-') && key.toLowerCase().includes(clean.replace('demo-', ''))))) {
+          if (key !== 'ngo_deleted_tenant_ids') {
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Auto purge warning:', err);
   }
 }
 

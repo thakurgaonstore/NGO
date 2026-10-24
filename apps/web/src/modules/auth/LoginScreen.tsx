@@ -52,8 +52,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
   });
 
   // Client Login Credentials (locked to resolved clientId on custom domain)
-  const [clientId, setClientId] = useState<string>(resolution.clientId || tenant?.clientId || 'JAGORANI');
-  const [identifier, setIdentifier] = useState<string>('01911-889900'); // Field officer mobile by default for demo
+  const [clientId, setClientId] = useState<string>(resolution.clientId || tenant?.clientId || 'SHEBA');
+  const [identifier, setIdentifier] = useState<string>('01700-000000');
   const [password, setPassword] = useState<string>('NgoPass2026!');
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -113,7 +113,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
       loginAsSuperAdminMock();
       onLoginSuccess(true);
     } else {
-      loginAsTenantMock(demoRole, tenant?.id || 'demo-jagorani');
+      loginAsTenantMock(demoRole, tenant?.id || 'sheba-manobik');
       onLoginSuccess(false);
     }
   };

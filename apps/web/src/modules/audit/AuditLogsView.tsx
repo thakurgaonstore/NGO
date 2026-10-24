@@ -24,7 +24,7 @@ const INITIAL_LOGS: AuditLogItem[] = [
     id: 'log-01',
     action: 'CREATE',
     entity: 'voucher',
-    userEmail: 'accounts@jagorani.org',
+    userEmail: 'accounts@sheba-bd.org',
     userName: 'Sadia Sultana',
     timestamp: Date.now() - 3600000,
     details: 'Created Bank Payment Voucher BP-2026-0042 (Amount: ৳ 45,000)'
@@ -33,7 +33,7 @@ const INITIAL_LOGS: AuditLogItem[] = [
     id: 'log-02',
     action: 'APPROVE',
     entity: 'voucher',
-    userEmail: 'manager@jagorani.org',
+    userEmail: 'manager@sheba-bd.org',
     userName: 'Farhana Yasmin',
     timestamp: Date.now() - 7200000,
     details: 'Approved Cash Receipt Voucher CR-2026-0019 (Amount: ৳ 12,500)'
@@ -42,7 +42,7 @@ const INITIAL_LOGS: AuditLogItem[] = [
     id: 'log-03',
     action: 'REGISTER',
     entity: 'member',
-    userEmail: 'officer@jagorani.org',
+    userEmail: 'officer@sheba-bd.org',
     userName: 'Md. Tariqul Islam',
     timestamp: Date.now() - 14400000,
     details: 'Registered new beneficiary: Rahima Begum (MEM-2026-0142)'
@@ -51,7 +51,7 @@ const INITIAL_LOGS: AuditLogItem[] = [
     id: 'log-04',
     action: 'UPDATE',
     entity: 'settings',
-    userEmail: 'director@jagorani.org',
+    userEmail: 'director@sheba-bd.org',
     userName: 'Dr. Aminul Islam',
     timestamp: Date.now() - 86400000,
     details: 'Updated BulkSMSBD API credentials'

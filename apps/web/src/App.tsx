@@ -55,8 +55,9 @@ const AppContent: React.FC = () => {
   const { currentUser, isSuperAdmin } = useAuth();
 
   // Determine initial view based on URL & resolution
-  const getInitialView = (): 'platform_home' | 'public' | 'login' | 'client' | 'superadmin' => {
+  const getInitialView = (): 'platform_home' | 'public' | 'login' | 'client' | 'superadmin' | 'tenant_deleted' => {
     const pathname = window.location.pathname.toLowerCase();
+    const firstSegment = pathname.split('/').filter(Boolean)[0] || '';
 
     // 1. Super Admin Portal (/mahinerp or /superadmin)
     if (pathname.startsWith('/mahinerp') || pathname.startsWith('/superadmin')) {
@@ -68,17 +69,32 @@ const AppContent: React.FC = () => {
       return currentUser ? (isSuperAdmin ? 'superadmin' : 'client') : 'login';
     }
 
-    // 3. Path-based client (/JAGORANI, /sheba) or custom domain public site
-    if (resolution.isPublicLanding && resolution.tenantId) {
+    // 3. Check if path or tenant is deleted or not found
+    if (
+      resolution.isTenantDeleted ||
+      isTenantDeleted(firstSegment) ||
+      isTenantDeleted(resolution.tenantId) ||
+      isTenantDeleted(resolution.clientId)
+    ) {
+      return 'tenant_deleted';
+    }
+
+    // 4. Path-based client (/sheba) or custom domain public site
+    if (resolution.isPublicLanding && resolution.tenantId && !isTenantDeleted(resolution.tenantId)) {
       return 'public';
     }
 
-    // 4. Platform Home (root '/' or '/home')
+    // If an unknown non-reserved path was requested, treat as not found / deleted
+    if (firstSegment && !['mahinerp', 'superadmin', 'cerp', 'login', 'admin', 'api', 'home'].includes(firstSegment)) {
+      return 'tenant_deleted';
+    }
+
+    // 5. Platform Home (root '/' or '/home')
     if (resolution.isPlatformHome || pathname === '/' || pathname === '/home') {
       return 'platform_home';
     }
 
-    // 5. If logged in, go to ERP / SA
+    // 6. If logged in, go to ERP / SA
     if (currentUser) {
       return isSuperAdmin ? 'superadmin' : 'client';
     }
@@ -86,7 +102,7 @@ const AppContent: React.FC = () => {
     return 'platform_home';
   };
 
-  const [currentView, setCurrentView] = useState<'platform_home' | 'public' | 'login' | 'client' | 'superadmin'>(getInitialView);
+  const [currentView, setCurrentView] = useState<'platform_home' | 'public' | 'login' | 'client' | 'superadmin' | 'tenant_deleted'>(getInitialView);
   const [superAdminTab, setSuperAdminTab] = useState<string>('overview');
   const [clientModule, setClientModule] = useState<string>('dashboard');
 
@@ -102,6 +118,43 @@ const AppContent: React.FC = () => {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [currentUser, isSuperAdmin, resolution]);
+
+  // Handle Deleted / Not Found Tenant View
+  if (currentView === 'tenant_deleted') {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-4 shadow-sm border border-rose-200">
+          <Database className="w-8 h-8" />
+        </div>
+        <h2 className="text-2xl font-bold text-slate-800 mb-2">
+          এনজিওটি খুঁজে পাওয়া যায়নি বা মুছে ফেলা হয়েছে
+        </h2>
+        <p className="text-sm text-slate-600 max-w-md mb-6 leading-relaxed">
+          এই এনজিও অ্যাকাউন্টটি বর্তমানে সিস্টেমে বিদ্যমান নেই অথবা সুপার এডমিন কর্তৃক স্থায়ীভাবে ডিলিট করা হয়েছে।
+        </p>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={() => {
+              window.history.pushState({}, '', '/');
+              setCurrentView('platform_home');
+            }}
+            className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold shadow hover:bg-emerald-700 transition-all"
+          >
+            ← মূল প্ল্যাটফর্ম হোমপেজ
+          </button>
+          <button
+            onClick={() => {
+              window.history.pushState({}, '', '/mahinerp');
+              setCurrentView(isSuperAdmin ? 'superadmin' : 'login');
+            }}
+            className="px-5 py-2.5 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-100 transition-all shadow-sm"
+          >
+            সুপার এডমিন পোর্টাল
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Handle Main Platform Promotional Home Page (/)
   if (currentView === 'platform_home') {
@@ -257,7 +310,7 @@ const AppContent: React.FC = () => {
         <PublicLandingPage
           tenantId={effectiveTenantId}
           onNavigateToLogin={() => {
-            const loginPath = isCustomDomain ? '/cerp' : `/${resolution.clientId?.toLowerCase() || 'jagorani'}/cerp`;
+            const loginPath = isCustomDomain ? '/cerp' : `/${resolution.clientId?.toLowerCase() || tenant?.clientId?.toLowerCase() || 'sheba'}/cerp`;
             window.history.pushState({}, '', loginPath);
             setCurrentView('login');
           }}
@@ -386,7 +439,7 @@ const AppContent: React.FC = () => {
       onModuleChange={setClientModule}
       onSwitchToSuperAdmin={() => setCurrentView('superadmin')}
       onViewPublicSite={() => {
-        const targetSlug = resolution.clientId?.toLowerCase() || 'jagorani';
+        const targetSlug = resolution.clientId?.toLowerCase() || tenant?.clientId?.toLowerCase() || 'sheba';
         window.history.pushState({}, '', `/${targetSlug}`);
         setCurrentView('public');
       }}

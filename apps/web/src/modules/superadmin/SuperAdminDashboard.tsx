@@ -20,31 +20,6 @@ import {
 
 const INITIAL_DEMO_TENANTS: Tenant[] = [
   {
-    id: 'demo-jagorani',
-    clientId: 'JAGORANI',
-    subdomain: 'jagorani',
-    domain: 'www.jagoranibd.org',
-    name: {
-      en: 'Jagorani Development Foundation',
-      bn: 'জাগরণী উন্নয়ন ফাউন্ডেশন'
-    },
-    planId: 'growth',
-    status: 'active',
-    deploymentMode: 'MODE_A',
-    enabledModules: ['dashboard', 'organization', 'members', 'projects', 'accounts', 'field_ops', 'hr_payroll', 'website', 'reports', 'settings'],
-    quotas: {
-      usersCount: 8,
-      branchesCount: 3,
-      estimatedDailyReads: 1450,
-      estimatedDailyWrites: 120,
-      smsCreditsRemaining: 680
-    },
-    ownerEmail: 'director@jagorani.org',
-    createdAt: Date.now() - 60 * 86400000,
-    updatedAt: Date.now(),
-    expiresAt: Date.now() + 305 * 86400000
-  },
-  {
     id: 'sheba-manobik',
     clientId: 'SHEBA',
     subdomain: 'sheba',

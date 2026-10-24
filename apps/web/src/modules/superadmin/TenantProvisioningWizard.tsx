@@ -37,10 +37,10 @@ export const TenantProvisioningWizard: React.FC<ProvisioningWizardProps> = ({ on
   const [error, setError] = useState<string | null>(null);
 
   // Form State
-  const [nameEn, setNameEn] = useState<string>('Jagorani Development Society');
-  const [nameBn, setNameBn] = useState<string>('জাগরণী উন্নয়ন সমিতি');
-  const [clientId, setClientId] = useState<string>('JAGORANI');
-  const [subdomain, setSubdomain] = useState<string>('jagorani');
+  const [nameEn, setNameEn] = useState<string>('');
+  const [nameBn, setNameBn] = useState<string>('');
+  const [clientId, setClientId] = useState<string>('');
+  const [subdomain, setSubdomain] = useState<string>('');
   const [domain, setDomain] = useState<string>('');
   const [primaryColor, setPrimaryColor] = useState<string>('#0d9488'); // Teal 600
 
@@ -66,10 +66,10 @@ export const TenantProvisioningWizard: React.FC<ProvisioningWizardProps> = ({ on
   ]);
 
   // Owner Account
-  const [ownerNameEn, setOwnerNameEn] = useState<string>('Dr. Aminul Islam');
-  const [ownerNameBn, setOwnerNameBn] = useState<string>('ড. আমিনুল ইসলাম');
-  const [ownerEmail, setOwnerEmail] = useState<string>('director@jagorani.org');
-  const [ownerMobile, setOwnerMobile] = useState<string>('01712345678');
+  const [ownerNameEn, setOwnerNameEn] = useState<string>('');
+  const [ownerNameBn, setOwnerNameBn] = useState<string>('');
+  const [ownerEmail, setOwnerEmail] = useState<string>('');
+  const [ownerMobile, setOwnerMobile] = useState<string>('');
   const [ownerPassword, setOwnerPassword] = useState<string>('NgoPass2026!');
   const [seedDemoData, setSeedDemoData] = useState<boolean>(true);
 

@@ -103,12 +103,12 @@ export interface NgoWebsiteConfig {
 }
 
 export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
-  tenantId: 'demo-jagorani',
-  clientId: 'JAGORANI',
-  customDomain: 'www.jagorani.org',
+  tenantId: 'sheba-manobik',
+  clientId: 'SHEBA',
+  customDomain: 'www.sheba-bd.org',
 
-  brandNameBn: 'জাগরণী উন্নয়ন ফাউন্ডেশন',
-  brandNameEn: 'Jagorani Development Foundation',
+  brandNameBn: 'সেবা মানবিক উন্নয়ন কেন্দ্র',
+  brandNameEn: 'Sheba Manobik Unnayan Kendra',
   sloganBn: 'প্রান্তিক মানুষের অর্থনৈতিক ক্ষমতায়ন ও টেকসই সামাজিক উন্নয়ন',
   sloganEn: 'Economic Empowerment & Sustainable Social Impact',
   logoUrl: 'https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?w=120&auto=format&fit=crop&q=80',
@@ -117,16 +117,16 @@ export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
   primaryColor: '#059669', // Emerald 600
   accentColor: '#0284c7', // Sky 600
 
-  browserTitleBn: 'জাগরণী উন্নয়ন ফাউন্ডেশন — ক্ষুদ্রঋণ ও সমাজকল্যাণ সংস্থা',
-  browserTitleEn: 'Jagorani Development Foundation — Microcredit & Welfare Organization',
+  browserTitleBn: 'সেবা মানবিক উন্নয়ন কেন্দ্র — ক্ষুদ্রঋণ ও সমাজকল্যাণ সংস্থা',
+  browserTitleEn: 'Sheba Manobik Unnayan Kendra — Microcredit & Welfare Organization',
   seoDescriptionBn: 'বাংলাদেশের প্রান্তিক সুবিধাবঞ্চিত মানুষের ক্ষমতায়নে প্রতিশ্রুতিবদ্ধ একটি শীর্ষস্থানীয় এমআরএ অনুমোদিত এনজিও সংস্থা।',
   seoDescriptionEn: 'A leading MRA-licensed microfinance and community development NGO in Bangladesh.',
-  seoKeywords: 'এনজিও, ক্ষুদ্রঋণ, সঞ্চয়, ডিপিএস, বাংলাদেশ, অনুদান, microcredit bangladesh, ngo erp, jagorani, mra registered',
+  seoKeywords: 'এনজিও, ক্ষুদ্রঋণ, সঞ্চয়, ডিপিএস, বাংলাদেশ, অনুদান, microcredit bangladesh, ngo erp, sheba, mra registered',
   ogImageUrl: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=1200&auto=format&fit=crop&q=80',
 
   topBarEnabled: true,
-  hotline: '০১৭১১-২২৩৩৪৪',
-  email: 'info@jagorani.org',
+  hotline: '০১৭০০-০০০০০০',
+  email: 'info@sheba-bd.org',
   officeHoursBn: 'রবি - বৃহস্পতি: সকাল ৯:০০ - বিকাল ৫:০০ টা',
   officeHoursEn: 'Sun - Thu: 9:00 AM - 5:00 PM',
   facebookUrl: 'https://facebook.com',
@@ -235,8 +235,8 @@ export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
   ],
 
   footerColumnsCount: 4,
-  footerAboutBn: 'জাগরণী উন্নয়ন ফাউন্ডেশন বাংলাদেশ সরকারের মাইক্রোক্রেডিট রেগুলেটরি অথরিটি (MRA) কর্তৃক অনুমোদিত একটি শীর্ষস্থানীয় উন্নয়ন সংস্থা। ১৯৯৮ সাল থেকে প্রান্তিক জনগোষ্ঠীর দারিদ্র্য বিমোচন ও স্বাবলম্বীকরণে আমরা প্রতিশ্রুতিবদ্ধ।',
-  footerAboutEn: 'Jagorani Development Foundation is an MRA-licensed leading non-profit humanitarian and microfinance organization committed to eradicating poverty and empowering communities across Bangladesh since 1998.',
+  footerAboutBn: 'সেবা মানবিক উন্নয়ন কেন্দ্র বাংলাদেশ সরকারের মাইক্রোক্রেডিট রেগুলেটরি অথরিটি (MRA) কর্তৃক অনুমোদিত একটি শীর্ষস্থানীয় উন্নয়ন সংস্থা। ১৯৯৮ সাল থেকে প্রান্তিক জনগোষ্ঠীর দারিদ্র্য বিমোচন ও স্বাবলম্বীকরণে আমরা প্রতিশ্রুতিবদ্ধ।',
+  footerAboutEn: 'Sheba Manobik Unnayan Kendra is an MRA-licensed leading non-profit humanitarian and microfinance organization committed to eradicating poverty and empowering communities across Bangladesh since 1998.',
   footerQuickLinks: [
     { labelBn: 'আমাদের লক্ষ্য ও উদ্দেশ্য', labelEn: 'Mission & Vision', href: '#about' },
     { labelBn: 'ক্ষুদ্রঋণ ও সঞ্চয় নীতিমালা', labelEn: 'Microcredit & Savings Policy', href: '#microfinance' },
@@ -247,12 +247,12 @@ export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
   ],
   footerContactAddressBn: 'প্রধান কার্যালয়: বাড়ি ১৪, রোড ৫, ধানমন্ডি আ/এ, ঢাকা-১২০৫, বাংলাদেশ।',
   footerContactAddressEn: 'Head Office: House 14, Road 5, Dhanmondi R/A, Dhaka-1205, Bangladesh.',
-  footerHelpline: '০১৭১১-২২৩৩৪৪ / ০৯৬১১-৮৮৯৯০০',
+  footerHelpline: '০১৭০০-০০০০০০ / ০৯৬১১-০০০০০০',
   footerNewsletterTextBn: 'নিয়মিত সামাজিক উদ্যোগ, বৃত্তির খবর ও নোটিশের আপডেট পেতে আপনার ইমেইল যুক্ত করুন।',
   footerNewsletterTextEn: 'Subscribe to our newsletter for development updates and circulars.',
   footerMraBadgeEnabled: true,
-  footerCopyrightTextBn: '© ২০২৬ জাগরণী উন্নয়ন ফাউন্ডেশন। সর্বস্বত্ব সংরক্ষিত।',
-  footerCopyrightTextEn: '© 2026 Jagorani Development Foundation. All rights reserved.',
+  footerCopyrightTextBn: '© ২০২৬ সেবা মানবিক উন্নয়ন কেন্দ্র। সর্বস্বত্ব সংরক্ষিত।',
+  footerCopyrightTextEn: '© 2026 Sheba Manobik Unnayan Kendra. All rights reserved.',
 
   contactFormEnabled: true,
   contactFormClosedNoticeBn: 'সম্মানিত গ্রাহক ও সদস্যবৃন্দ, বর্তমানে আমাদের অনলাইন বার্তা গ্রহণ সাময়িকভাবে বন্ধ আছে। জরুরি সেবা, সঞ্চয় ও ঋণের তথ্যের জন্য অনুগ্রহ করে আমাদের হেল্পলাইন নম্বরে সরাসরি যোগাযোগ করুন।',
@@ -260,7 +260,7 @@ export const DEFAULT_WEBSITE_CONFIG: NgoWebsiteConfig = {
 };
 
 export const getStoredWebsiteConfig = (tenantId?: string): NgoWebsiteConfig => {
-  const tid = tenantId || 'demo-jagorani';
+  const tid = tenantId || 'sheba-manobik';
   const saved = localStorage.getItem(`ngo_website_config_${tid}`);
   if (saved) {
     try {

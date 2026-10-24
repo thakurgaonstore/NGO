@@ -100,7 +100,7 @@ export const WebsiteCmsView: React.FC = () => {
     window.addEventListener('ngo_tenant_inquiry_added', handleTenantInquiry);
 
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === `ngo_tenant_inquiries_${tenant?.id || 'demo-jagorani'}`) {
+      if (e.key === `ngo_tenant_inquiries_${tenant?.id || 'sheba-manobik'}`) {
         reloadInquiries();
       }
     };
@@ -109,7 +109,7 @@ export const WebsiteCmsView: React.FC = () => {
     let bc: BroadcastChannel | null = null;
     try {
       if (typeof BroadcastChannel !== 'undefined') {
-        bc = new BroadcastChannel(`ngo_tenant_${tenant?.id || 'demo-jagorani'}_inquiries_channel`);
+        bc = new BroadcastChannel(`ngo_tenant_${tenant?.id || 'sheba-manobik'}_inquiries_channel`);
         bc.onmessage = () => {
           reloadInquiries();
         };
@@ -555,7 +555,7 @@ export const WebsiteCmsView: React.FC = () => {
                   <Input
                     value={config.customDomain || ''}
                     onChange={(e) => setConfig({ ...config, customDomain: e.target.value })}
-                    placeholder="যেমন: www.jagoranibd.org বা jagorani.org"
+                    placeholder="যেমন: www.sheba-bd.org বা yourngo.org"
                     className="font-mono"
                   />
                   <div className="mt-1.5 space-y-0.5 text-[10px]">
