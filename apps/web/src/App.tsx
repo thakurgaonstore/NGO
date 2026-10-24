@@ -391,7 +391,7 @@ const AppContent: React.FC = () => {
         setCurrentView('public');
       }}
     >
-      {clientModule === 'dashboard' && <ClientDashboardShell />}
+      {clientModule === 'dashboard' && <ClientDashboardShell onNavigateToModule={setClientModule} />}
       {clientModule === 'organization' && <OrganizationView />}
       {clientModule === 'users' && <UsersListView />}
       {clientModule === 'roles' && <RolesManagementView />}
