@@ -8,7 +8,7 @@ export interface DeleteTenantProgress {
 }
 
 /**
- * Permanently blacklisted tenant identifiers (e.g. deleted default demos such as Jagorani)
+ * Permanently blacklisted tenant identifiers (e.g. deleted default demos such as Jagorani, Sheba, Alok)
  */
 export const PERMANENT_GLOBAL_BLACKLIST: string[] = [
   'demo-jagorani',
@@ -17,8 +17,47 @@ export const PERMANENT_GLOBAL_BLACKLIST: string[] = [
   'jagoranibd.org',
   'www.jagoranibd.org',
   'jagorani.org',
-  'www.jagorani.org'
+  'www.jagorani.org',
+  'sheba-manobik',
+  'sheba',
+  'sheba-bd.org',
+  'www.sheba-bd.org',
+  'alok-shikkha',
+  'alok'
 ];
+
+export const TGPS_DEFAULT_RECORD: any = {
+  id: 'tgps',
+  clientId: 'TGPS',
+  subdomain: 'tgps',
+  domain: 'tgps.ngoerp.xyz',
+  name: {
+    en: 'Thakurgaon Green Practice Society (TGPS)',
+    bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
+  },
+  planId: 'enterprise',
+  status: 'active',
+  deploymentMode: 'MODE_A',
+  enabledModules: [
+    'dashboard', 'organization', 'members', 'projects', 'microcredit',
+    'donors_grants', 'accounts', 'field_ops', 'hr_payroll', 'inventory',
+    'website', 'reports', 'settings'
+  ],
+  quotas: {
+    usersCount: 15,
+    branchesCount: 4,
+    estimatedDailyReads: 1250,
+    estimatedDailyWrites: 180,
+    smsCreditsRemaining: 4500
+  },
+  ownerEmail: 'shopthakurgaon@gmail.com',
+  ownerMobile: '01811544992',
+  defaultPassword: 'NgoPass2026!',
+  ownerPassword: 'NgoPass2026!',
+  createdAt: 1729740000000,
+  updatedAt: 1729740000000,
+  expiresAt: 1761276000000
+};
 
 /**
  * Returns list of tenant IDs / client codes / subdomains that were permanently deleted.
@@ -27,7 +66,11 @@ export function getDeletedTenantIds(): string[] {
   try {
     const raw = localStorage.getItem('ngo_deleted_tenant_ids');
     const stored: string[] = raw ? JSON.parse(raw) : [];
-    return Array.from(new Set([...PERMANENT_GLOBAL_BLACKLIST, ...stored.map((s) => s.trim().toLowerCase())]));
+    // TGPS is the real active NGO — NEVER allow it to be marked as deleted
+    const valid = stored
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s !== 'tgps' && s !== '1gps' && s !== 'demo-tgps');
+    return Array.from(new Set([...PERMANENT_GLOBAL_BLACKLIST, ...valid]));
   } catch {
     return [...PERMANENT_GLOBAL_BLACKLIST];
   }
@@ -39,9 +82,14 @@ export function getDeletedTenantIds(): string[] {
 export function isTenantDeleted(idOrSlug?: string | null): boolean {
   if (!idOrSlug) return false;
   const clean = idOrSlug.trim().toLowerCase().replace(/^www\./, '');
+  // TGPS is the active NGO — NEVER treat as deleted!
+  if (clean === 'tgps' || clean === '1gps' || clean === 'demo-tgps') {
+    return false;
+  }
   const deleted = getDeletedTenantIds();
   return deleted.some((d) => {
     const cleanD = d.toLowerCase().replace(/^www\./, '');
+    if (cleanD === 'tgps' || cleanD === '1gps') return false;
     return cleanD === clean || clean === `demo-${cleanD}` || cleanD === `demo-${clean}`;
   });
 }
@@ -52,7 +100,12 @@ export function isTenantDeleted(idOrSlug?: string | null): boolean {
 export function markTenantAsDeleted(identifiers: string[]) {
   try {
     const existing = getDeletedTenantIds();
-    const updated = Array.from(new Set([...existing, ...identifiers.map((s) => s.trim().toLowerCase())]));
+    // Guard against accidentally blacklisting TGPS
+    const safeIdentifiers = identifiers
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s !== 'tgps' && s !== '1gps' && s !== 'demo-tgps');
+
+    const updated = Array.from(new Set([...existing, ...safeIdentifiers]));
     localStorage.setItem('ngo_deleted_tenant_ids', JSON.stringify(updated));
 
     // Best-effort sync to Firestore central registry
@@ -62,7 +115,7 @@ export function markTenantAsDeleted(identifiers: string[]) {
       setDoc(
         registryRef,
         {
-          deletedTenantIds: arrayUnion(...identifiers.map((s) => s.trim().toLowerCase())),
+          deletedTenantIds: arrayUnion(...safeIdentifiers),
           updatedAt: Date.now()
         },
         { merge: true }
@@ -80,22 +133,28 @@ export function purgeDeletedTenantTraces() {
   try {
     const deletedList = getDeletedTenantIds();
 
-    // 1. Purge registered list
+    // 1. Purge registered list and ALWAYS ensure TGPS is preserved
     const rawSaved = localStorage.getItem('ngo_registered_tenants');
+    let list: any[] = [];
     if (rawSaved) {
-      const list = JSON.parse(rawSaved);
-      if (Array.isArray(list)) {
-        const filtered = list.filter(
-          (t: any) =>
-            !isTenantDeleted(t.id) &&
-            !isTenantDeleted(t.clientId) &&
-            !isTenantDeleted(t.subdomain)
-        );
-        if (filtered.length !== list.length) {
-          localStorage.setItem('ngo_registered_tenants', JSON.stringify(filtered));
+      try {
+        const parsed = JSON.parse(rawSaved);
+        if (Array.isArray(parsed)) {
+          list = parsed.filter(
+            (t: any) =>
+              !isTenantDeleted(t.id) &&
+              !isTenantDeleted(t.clientId) &&
+              !isTenantDeleted(t.subdomain)
+          );
         }
-      }
+      } catch {}
     }
+
+    const hasTgps = list.some((t: any) => t.id === 'tgps' || t.clientId?.toUpperCase() === 'TGPS');
+    if (!hasTgps) {
+      list.unshift(TGPS_DEFAULT_RECORD);
+    }
+    localStorage.setItem('ngo_registered_tenants', JSON.stringify(list));
 
     // 2. Purge active tenant if deleted
     const active = localStorage.getItem('ngo_active_tenant_v1');

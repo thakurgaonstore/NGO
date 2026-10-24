@@ -47,60 +47,6 @@ const INITIAL_DEMO_TENANTS: Tenant[] = [
     createdAt: Date.now() - 30 * 86400000,
     updatedAt: Date.now(),
     expiresAt: Date.now() + 335 * 86400000
-  },
-  {
-    id: 'sheba-manobik',
-    clientId: 'SHEBA',
-    subdomain: 'sheba',
-    name: {
-      en: 'Sheba Manobik Unnayan Kendra',
-      bn: 'সেবা মানবিক উন্নয়ন কেন্দ্র'
-    },
-    planId: 'enterprise',
-    status: 'active',
-    deploymentMode: 'MODE_B', // Dedicated Firebase
-    firebaseConfig: {
-      apiKey: 'AIzaSyDemoSheba...',
-      authDomain: 'sheba-ngo.firebaseapp.com',
-      projectId: 'sheba-ngo-prod',
-      appId: '1:987654:web:sheba'
-    },
-    enabledModules: ['dashboard', 'organization', 'members', 'projects', 'microcredit', 'donors_grants', 'accounts', 'field_ops', 'hr_payroll', 'inventory', 'website', 'reports', 'settings'],
-    quotas: {
-      usersCount: 22,
-      branchesCount: 6,
-      estimatedDailyReads: 3200,
-      estimatedDailyWrites: 340,
-      smsCreditsRemaining: 3400
-    },
-    ownerEmail: 'admin@shebangoc.org',
-    createdAt: Date.now() - 90 * 86400000,
-    updatedAt: Date.now(),
-    expiresAt: Date.now() + 275 * 86400000
-  },
-  {
-    id: 'alok-shikkha',
-    clientId: 'ALOK',
-    subdomain: 'alok',
-    name: {
-      en: 'Alok Shikkha & Shasthya Foundation',
-      bn: 'আলোক শিক্ষা ও স্বাস্থ্য ফাউন্ডেশন'
-    },
-    planId: 'starter',
-    status: 'trial',
-    deploymentMode: 'MODE_A',
-    enabledModules: ['dashboard', 'organization', 'members', 'projects', 'accounts', 'website', 'settings'],
-    quotas: {
-      usersCount: 2,
-      branchesCount: 1,
-      estimatedDailyReads: 310,
-      estimatedDailyWrites: 25,
-      smsCreditsRemaining: 150
-    },
-    ownerEmail: 'info@alokbd.org',
-    createdAt: Date.now() - 10 * 86400000,
-    updatedAt: Date.now(),
-    expiresAt: Date.now() + 5 * 86400000 // 5 days left in trial
   }
 ];
 
@@ -113,43 +59,45 @@ export const SuperAdminDashboard: React.FC<{ onNavigateToTenantApp: (tenantId: s
 
   // Initialize and load registered tenants
   const [tenants, setTenants] = useState<Tenant[]>(() => {
+    let list: Tenant[] = [];
     const saved = localStorage.getItem('ngo_registered_tenants');
     if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId));
+          list = parsed.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId));
         }
       } catch (e) {
         console.warn('Failed to parse saved tenants:', e);
       }
     }
 
-    // Only seed demo tenants on initial installation if never seeded before
-    if (!localStorage.getItem('ngo_has_seeded_initial')) {
-      const filtered = INITIAL_DEMO_TENANTS.filter((t) => !isTenantDeleted(t.id));
-      localStorage.setItem('ngo_has_seeded_initial', 'true');
-      localStorage.setItem('ngo_registered_tenants', JSON.stringify(filtered));
-      return filtered;
+    const hasTgps = list.some((t) => t.id === 'tgps' || t.clientId?.toUpperCase() === 'TGPS');
+    if (!hasTgps) {
+      list = [...INITIAL_DEMO_TENANTS, ...list];
     }
-
-    return [];
+    localStorage.setItem('ngo_registered_tenants', JSON.stringify(list));
+    return list;
   });
 
   const refreshTenants = () => {
     const saved = localStorage.getItem('ngo_registered_tenants');
+    let list: Tenant[] = [];
     if (saved !== null) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          setTenants(parsed.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId)));
-          return;
+          list = parsed.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId));
         }
       } catch (e) {
         console.warn('Failed to refresh tenants:', e);
       }
     }
-    setTenants([]);
+    const hasTgps = list.some((t) => t.id === 'tgps' || t.clientId?.toUpperCase() === 'TGPS');
+    if (!hasTgps) {
+      list = [...INITIAL_DEMO_TENANTS, ...list];
+    }
+    setTenants(list);
   };
 
   useEffect(() => {

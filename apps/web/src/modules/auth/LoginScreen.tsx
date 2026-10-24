@@ -3,6 +3,7 @@ import { useI18n } from '../../core/i18n/I18nContext';
 import { useAuth } from '../../core/auth/AuthContext';
 import { useTenant } from '../../core/tenant/TenantContext';
 import { UserRole } from '@ngo-erp/shared';
+import { isTenantDeleted } from '../../core/tenant/tenantCleanupService';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/card';
@@ -64,10 +65,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
     try {
       const raw = localStorage.getItem('ngo_registered_tenants');
       const list = raw ? JSON.parse(raw) : [];
-      return Array.isArray(list) ? list.filter((t: any) => t.status === 'active') : [];
-    } catch {
-      return [];
-    }
+      const active = Array.isArray(list) ? list.filter((t: any) => !isTenantDeleted(t.id) && !isTenantDeleted(t.clientId)) : [];
+      if (active.length > 0) return active;
+    } catch {}
+    return [
+      {
+        id: 'tgps',
+        clientId: 'TGPS',
+        name: {
+          bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)',
+          en: 'Thakurgaon Green Practice Society (TGPS)'
+        },
+        ownerMobile: '01811544992',
+        defaultPassword: 'NgoPass2026!'
+      }
+    ];
   }, []);
 
   // Password Change Modal State
@@ -124,23 +136,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, initia
       loginAsSuperAdminMock();
       onLoginSuccess(true);
     } else {
-      let targetTenantId = '';
+      let targetTenantId = 'tgps';
       try {
         const raw = localStorage.getItem('ngo_registered_tenants');
         const list = raw ? JSON.parse(raw) : [];
         const match = list.find(
           (t: any) =>
+            !isTenantDeleted(t.id) &&
+            !isTenantDeleted(t.clientId) &&
             clientId &&
             (t.clientId?.toUpperCase() === clientId.trim().toUpperCase() ||
               t.id?.toLowerCase() === clientId.trim().toLowerCase() ||
               t.subdomain?.toLowerCase() === clientId.trim().toLowerCase())
-        ) || list[0];
+        );
         if (match) targetTenantId = match.id;
       } catch {}
-
-      if (!targetTenantId) {
-        targetTenantId = tenant?.id || 'tgps';
-      }
 
       loginAsTenantMock(demoRole, targetTenantId);
       onLoginSuccess(false);

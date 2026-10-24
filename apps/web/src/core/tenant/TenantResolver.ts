@@ -29,16 +29,6 @@ export const DEFAULT_DEMO_TENANTS: Array<{
       en: 'Thakurgaon Green Practice Society (TGPS)',
       bn: 'ঠাকুরগাঁও গ্রীন প্র্যাকটিস সোসাইটি (TGPS)'
     }
-  },
-  {
-    id: 'sheba-manobik',
-    clientId: 'SHEBA',
-    subdomain: 'sheba',
-    domain: 'www.sheba-bd.org',
-    name: {
-      en: 'Sheba Manobik Unnayan Kendra',
-      bn: 'সেবা মানবিক উন্নয়ন কেন্দ্র'
-    }
   }
 ];
 
